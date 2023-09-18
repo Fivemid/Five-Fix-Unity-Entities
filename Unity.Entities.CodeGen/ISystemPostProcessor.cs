@@ -200,7 +200,7 @@ namespace Unity.Entities.CodeGen
                 if (_targetMethodDef.DeclaringType.HasGenericParameters)
                 {
                     _targetMethodRef =
-                        mod.ImportReference(_targetMethodRef.MakeGenericHostMethod(specializedSystemType));
+                        mod.ImportReference(_targetMethodRef.MakeGenericHostMethod(memo.m_SystemType));
                 }
                 if (_targetMethodRef == null)
                     continue;
