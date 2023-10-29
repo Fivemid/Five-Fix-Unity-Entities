@@ -7,7 +7,7 @@ namespace Unity.Entities.Editor.PerformanceTests
 {
     [TestFixture]
     [Category(Categories.Performance)]
-    class ComponentDataDifferPerformanceTests : DifferTestFixture
+    unsafe class ComponentDataDifferPerformanceTests : DifferTestFixture
     {
         [Test, Performance]
         public void ComponentDataDiffer_Spawn_PerformanceTest([Values(1000, 10_000, 100_000, 250_000, 500_000)]
@@ -16,6 +16,7 @@ namespace Unity.Entities.Editor.PerformanceTests
             var entities = CreateEntitiesWithMockSharedComponentData(entityCount, World.UpdateAllocator.ToAllocator, i => i % 100, typeof(EcsTestData), typeof(EcsTestSharedComp));
             var sharedComponentCount = World.EntityManager.GetSharedComponentCount();
             var query = World.EntityManager.CreateEntityQuery(typeof(EcsTestData));
+            var ecs = World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore;
             ComponentDataDiffer componentDiffer = null;
 
             Measure.Method(() =>
@@ -26,7 +27,7 @@ namespace Unity.Entities.Editor.PerformanceTests
                 })
                 .SetUp(() =>
                 {
-                    componentDiffer = new ComponentDataDiffer(typeof(EcsTestData));
+                    componentDiffer = new ComponentDataDiffer(ecs, typeof(EcsTestData));
                 })
                 .CleanUp(() =>
                 {
@@ -48,7 +49,8 @@ namespace Unity.Entities.Editor.PerformanceTests
             var entities = CreateEntitiesWithMockSharedComponentData(entityCount, World.UpdateAllocator.ToAllocator, i => i % 100, typeof(EcsTestData), typeof(EcsTestSharedComp));
             var sharedComponentCount = World.EntityManager.GetSharedComponentCount();
             var query = World.EntityManager.CreateEntityQuery(typeof(EcsTestData));
-            var componentDiffer = new ComponentDataDiffer(typeof(EcsTestData));
+            var ecs = World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore;
+            var componentDiffer = new ComponentDataDiffer(ecs, typeof(EcsTestData));
 
             Measure.Method(() =>
                 {
@@ -74,7 +76,8 @@ namespace Unity.Entities.Editor.PerformanceTests
         {
             var entities = CreateEntitiesWithMockSharedComponentData(entityCount, World.UpdateAllocator.ToAllocator, typeof(EcsTestData));
             var query = World.EntityManager.CreateEntityQuery(typeof(EcsTestData));
-            var componentDiffer = new ComponentDataDiffer(typeof(EcsTestData));
+            var ecs = World.EntityManager.GetCheckedEntityDataAccess()->EntityComponentStore;
+            var componentDiffer = new ComponentDataDiffer(ecs, typeof(EcsTestData));
             var counter = entities.Length;
             if (changeCount > entityCount)
                 changeCount = entityCount;

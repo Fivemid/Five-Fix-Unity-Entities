@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
 using Unity.Entities.SourceGen.SystemGenerator;
+using Unity.Entities.SourceGen.SystemGenerator.Common;
 using VerifyCS =
     Unity.Entities.SourceGenerators.Test.CSharpSourceGeneratorVerifier<
         Unity.Entities.SourceGen.SystemGenerator.SystemGenerator>;

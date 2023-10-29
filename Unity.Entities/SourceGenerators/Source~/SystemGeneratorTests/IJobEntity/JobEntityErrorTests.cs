@@ -1,9 +1,10 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
+using Unity.Entities.SourceGen.JobEntityGenerator;
 using Unity.Entities.SourceGen.SystemGenerator.Common;
 using VerifyCS =
     Unity.Entities.SourceGenerators.Test.CSharpIncrementalGeneratorVerifier<
-        Unity.Entities.SourceGen.JobEntity.JobEntityGenerator>;
+        Unity.Entities.SourceGen.JobEntityGenerator.JobEntityGenerator>;
 
 namespace Unity.Entities.SourceGenerators;
 
@@ -384,7 +385,7 @@ public class JobEntityErrorTests
         var expected = VerifyCS.CompilerError(nameof(JobEntityGeneratorErrors.SGJE0020)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
-    
+
     [TestMethod]
     public async Task SGJE0021_AspectByIn()
     {

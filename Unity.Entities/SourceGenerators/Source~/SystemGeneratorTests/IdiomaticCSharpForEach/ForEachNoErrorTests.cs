@@ -147,4 +147,23 @@ public class ForEachNoErrorTests
         var diagnosticResult = DiagnosticResult.CompilerError("CS0104").WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, diagnosticResult);
     }
+
+    [TestMethod]
+    public async Task SGFE010_QueryingTypeWithNonGenericTypeArgument()
+    {
+        const string source = @"
+            using Unity.Entities;
+            using Unity.Entities.Tests;
+
+            partial class TranslationSystem<T> : SystemBase where T : unmanaged, IComponentData
+            {
+                protected override void OnUpdate()
+                {
+                    foreach (var component in SystemAPI.Query<{|#0:RefRO<GenericComponentData<int>>|}>())
+                    {
+                    }
+                }
+            }";
+        await VerifyCS.VerifySourceGeneratorAsync(source);
+    }
 }

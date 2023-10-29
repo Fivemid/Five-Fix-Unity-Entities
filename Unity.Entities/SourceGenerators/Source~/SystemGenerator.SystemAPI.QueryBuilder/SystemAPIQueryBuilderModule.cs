@@ -7,7 +7,7 @@ using Unity.Entities.SourceGen.SystemGenerator.Common;
 
 namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
 {
-    public class SystemAPIQueryBuilderModule : ISystemModule
+    public class SystemApiQueryBuilderModule : ISystemModule
     {
         private readonly List<QueryCandidate> _queryCandidates = new List<QueryCandidate>();
         private Dictionary<TypeDeclarationSyntax, QueryCandidate[]> _candidatesGroupedByContainingSystemTypes;
@@ -32,7 +32,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
 
         public bool RequiresReferenceToBurst { get; private set; }
 
-        public void OnReceiveSyntaxNode(SyntaxNode node)
+        public void OnReceiveSyntaxNode(SyntaxNode node, Dictionary<SyntaxNode, CandidateSyntax> candidateOwnership)
         {
             if (node is InvocationExpressionSyntax invocationExpressionSyntax)
             {
@@ -63,14 +63,16 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
             }
         }
 
-        readonly string[] _groupNames = { "WithAll", "WithAny", "WithNone", "WithDisabled", "WithAbsent" };
+        readonly string[] _groupNames = { "WithAll", "WithAny", "WithNone", "WithDisabled", "WithAbsent", "WithPresent" };
 
         public bool RegisterChangesInSystem(SystemDescription systemDescription)
         {
-            var systemApiQueryBuilderDescriptions = new List<SystemAPIQueryBuilderDescription>();
+            var systemApiQueryBuilderDescriptions = new List<SystemApiQueryBuilderDescription>();
+            var systemApiQueryBuilderDescriptionGroupedByBuildNodes = new Dictionary<SyntaxNode, SystemApiQueryBuilderDescription>();
+
             foreach (var queryCandidate in CandidatesGroupedByContainingSystemTypes[systemDescription.SystemTypeSyntax])
             {
-                var description = new SystemAPIQueryBuilderDescription(systemDescription, queryCandidate);
+                var description = new SystemApiQueryBuilderDescription(systemDescription, queryCandidate);
 
                 foreach (var archetypeInfo in description.Archetypes.Zip(description.QueryFinalizingLocations, (a, l) => (Archetype: a, Location: l)))
                 {
@@ -81,6 +83,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                         archetypeInfo.Archetype.None,
                         archetypeInfo.Archetype.Disabled,
                         archetypeInfo.Archetype.Absent,
+                        archetypeInfo.Archetype.Present
                     };
 
                     for (int i = 0; i < _groupNames.Length; ++i)
@@ -91,6 +94,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                 archetypeInfo.Location,
                                 groupLists[i],
                                 invokedMethodName: _groupNames[i]);
+
                         for (int j = i + 1; j < _groupNames.Length; ++j)
                         {
                             description.Success &=
@@ -112,14 +116,18 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                     RequiresReferenceToBurst = true;
 
                 systemApiQueryBuilderDescriptions.Add(description);
+                systemApiQueryBuilderDescriptionGroupedByBuildNodes.Add(queryCandidate.BuildNode, description);
+                systemDescription.CandidateNodes.Add(queryCandidate.BuildNode, new CandidateSyntax(CandidateType.QueryBuilder, CandidateFlags.None, queryCandidate.BuildNode));
             }
+
             foreach (var description in systemApiQueryBuilderDescriptions)
             {
                 description.GeneratedEntityQueryFieldName
-                    = systemDescription.HandlesDescription.GetOrCreateQueryField(new MultipleArchetypeQueryFieldDescription(description.Archetypes.ToArray(), description.GetQueryBuilderBodyBeforeBuild()));
+                    = systemDescription.QueriesAndHandles.GetOrCreateQueryField(
+                        new MultipleArchetypeQueryFieldDescription(description.Archetypes.ToArray(),
+                            description.GetQueryBuilderBodyBeforeBuild()));
             }
-
-            systemDescription.Rewriters.Add(new SystemAPIQueryBuilderRewriter(systemApiQueryBuilderDescriptions));
+            systemDescription.SyntaxWalkers.Add(Module.SystemApiQueryBuilder, new SystemApiQueryBuilderSyntaxWalker(systemApiQueryBuilderDescriptionGroupedByBuildNodes));
             return true;
         }
     }

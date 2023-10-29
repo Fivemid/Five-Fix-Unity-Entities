@@ -4,23 +4,19 @@ using Unity.Burst;
 using Unity.Entities;
 using Unity.Entities.Tests;
 using static Unity.Entities.SystemAPI;
-
 [global::System.Runtime.CompilerServices.CompilerGenerated]
-public partial struct RotationSpeedSystemForEachISystem : global::Unity.Entities.ISystem, global::Unity.Entities.ISystemCompilerGenerated
+public partial struct RotationSpeedSystemForEachISystem : global::Unity.Entities.ISystemCompilerGenerated
 {
-    [global::Unity.Entities.DOTSCompilerPatchedMethod("OnUpdate_ref_Unity.Entities.SystemState")]
-    void __OnUpdate_6E994214(ref SystemState state)
+    [global::Unity.Entities.DOTSCompilerPatchedMethod("OnUpdate_T0_ref_Unity.Entities.SystemState&")]
+    void __OnUpdate_6D4E9467(ref SystemState state)
     {
         #line 16 "/0/Test0.cs"
         Entity entity = default;
-            #line 17 "/0/Test0.cs"
-            global::Unity.Entities.Tests.EcsTestAspect.CompleteDependencyBeforeRW(ref state);
-            #line hidden
-            __TypeHandle.__Unity_Entities_Tests_EcsTestAspect_RW_AspectLookup.Update(ref state);
-            #line hidden
-            var testAspectRO = __TypeHandle.__Unity_Entities_Tests_EcsTestAspect_RW_AspectLookup[entity];
+        #line 17 "/0/Test0.cs"
+        var testAspectRO = global::Unity.Entities.Internal.InternalCompilerInterface.GetAspectAfterCompletingDependency<global::Unity.Entities.Tests.EcsTestAspect.Lookup, global::Unity.Entities.Tests.EcsTestAspect>(ref __TypeHandle.__Unity_Entities_Tests_EcsTestAspect_RW_AspectLookup, ref state, false, entity);
     }
 
+    
     TypeHandle __TypeHandle;
     struct TypeHandle
     {
@@ -30,13 +26,15 @@ public partial struct RotationSpeedSystemForEachISystem : global::Unity.Entities
         {
             __Unity_Entities_Tests_EcsTestAspect_RW_AspectLookup = new global::Unity.Entities.Tests.EcsTestAspect.Lookup(ref state);
         }
+        
     }
-
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     void __AssignQueries(ref global::Unity.Entities.SystemState state)
     {
+        var entityQueryBuilder = new global::Unity.Entities.EntityQueryBuilder(global::Unity.Collections.Allocator.Temp);
+        entityQueryBuilder.Dispose();
     }
-
+    
     public void OnCreateForCompiler(ref SystemState state)
     {
         __AssignQueries(ref state);

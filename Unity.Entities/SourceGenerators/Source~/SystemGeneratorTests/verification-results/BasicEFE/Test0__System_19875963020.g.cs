@@ -3,41 +3,44 @@
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Entities.Tests;
-
 [global::System.Runtime.CompilerServices.CompilerGenerated]
-public partial class BasicEFESystem : global::Unity.Entities.SystemBase
+public partial class BasicEFESystem
 {
-    [global::Unity.Entities.DOTSCompilerPatchedMethod("OnUpdate")]
-    void __OnUpdate_1817F1CB()
+    [global::Unity.Entities.DOTSCompilerPatchedMethod("OnUpdate_T0")]
+    void __OnUpdate_450AADF4()
     {
         #line 15 "/0/Test0.cs"
-        BasicEFESystem_123EB51D_LambdaJob_0_Execute();
+
+        BasicEFESystem_6F759C06_LambdaJob_0_Execute();
         #line 22 "/0/Test0.cs"
-        BasicEFESystem_123EB51D_LambdaJob_1_Execute();
+
+        BasicEFESystem_6F759C06_LambdaJob_1_Execute();
     }
 
-    #line 20 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+    #line 21 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
     [global::Unity.Burst.NoAlias]
-    [global::Unity.Burst.BurstCompile(FloatMode = global::Unity.Burst.FloatMode.Deterministic, FloatPrecision = global::Unity.Burst.FloatPrecision.Low, CompileSynchronously = true)]
-    struct BasicEFESystem_123EB51D_LambdaJob_0_Job : global::Unity.Entities.IJobChunk
+    [global::Unity.Burst.BurstCompile(
+    FloatMode=global::Unity.Burst.FloatMode.Deterministic, FloatPrecision=global::Unity.Burst.FloatPrecision.Low, CompileSynchronously=true)]
+    struct BasicEFESystem_6F759C06_LambdaJob_0_Job : global::Unity.Entities.IJobChunk
     {
         public global::Unity.Entities.ComponentTypeHandle<global::TestData> __testDataTypeHandle;
+        
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         void OriginalLambdaBody([Unity.Burst.NoAlias] ref global::TestData testData)
         {
-            #line 17 "/0/Test0.cs"
-            testData.value++;
-        }
-
-        #line 33 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+#line 17 "/0/Test0.cs"
+testData.value++;
+            }
+        #line 35 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
         [global::System.Runtime.CompilerServices.CompilerGenerated]
         public void Execute(in global::Unity.Entities.ArchetypeChunk chunk, int batchIndex, bool useEnabledMask, in global::Unity.Burst.Intrinsics.v128 chunkEnabledMask)
         {
+            #line 39 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
             var testDataArrayPtr = global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetChunkNativeArrayIntPtr<global::TestData>(chunk, ref __testDataTypeHandle);
             int chunkEntityCount = chunk.Count;
             if (!useEnabledMask)
             {
-                for (var entityIndex = 0; entityIndex < chunkEntityCount; ++entityIndex)
+                for(var entityIndex = 0; entityIndex < chunkEntityCount; ++entityIndex)
                 {
                     OriginalLambdaBody(ref global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetRefToNativeArrayPtrElement<global::TestData>(testDataArrayPtr, entityIndex));
                 }
@@ -50,7 +53,7 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
                 {
                     int entityIndex = 0;
                     int batchEndIndex = 0;
-                    while (global::Unity.Entities.EnabledBitUtility.TryGetNextRange(chunkEnabledMask, batchEndIndex, out entityIndex, out batchEndIndex))
+                    while (global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeTryGetNextEnabledBitRange(chunkEnabledMask, batchEndIndex, out entityIndex, out batchEndIndex))
                     {
                         while (entityIndex < batchEndIndex)
                         {
@@ -69,10 +72,8 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
                         {
                             OriginalLambdaBody(ref global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetRefToNativeArrayPtrElement<global::TestData>(testDataArrayPtr, entityIndex));
                         }
-
                         mask64 >>= 1;
                     }
-
                     mask64 = chunkEnabledMask.ULong1;
                     for (var entityIndex = 64; entityIndex < chunkEntityCount; ++entityIndex)
                     {
@@ -80,43 +81,45 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
                         {
                             OriginalLambdaBody(ref global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetRefToNativeArrayPtrElement<global::TestData>(testDataArrayPtr, entityIndex));
                         }
-
                         mask64 >>= 1;
                     }
                 }
             }
         }
     }
-
-    void BasicEFESystem_123EB51D_LambdaJob_0_Execute()
+    void BasicEFESystem_6F759C06_LambdaJob_0_Execute()
     {
         __TypeHandle.__TestData_RW_ComponentTypeHandle.Update(ref this.CheckedStateRef);
-        var __job = new BasicEFESystem_123EB51D_LambdaJob_0_Job{__testDataTypeHandle = __TypeHandle.__TestData_RW_ComponentTypeHandle};
+        var __job = new BasicEFESystem_6F759C06_LambdaJob_0_Job
+        {
+            __testDataTypeHandle = __TypeHandle.__TestData_RW_ComponentTypeHandle
+        };
+        
         this.CheckedStateRef.Dependency = global::Unity.Entities.Internal.InternalCompilerInterface.JobChunkInterface.ScheduleParallel(__job, __query_1641826536_0, this.CheckedStateRef.Dependency);
     }
-
-    #line 99 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+    #line 101 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
     [global::Unity.Burst.NoAlias]
     [global::Unity.Burst.BurstCompile]
-    struct BasicEFESystem_123EB51D_LambdaJob_1_Job : global::Unity.Entities.IJobChunk
+    struct BasicEFESystem_6F759C06_LambdaJob_1_Job : global::Unity.Entities.IJobChunk
     {
         public global::Unity.Entities.ComponentTypeHandle<global::TestData> __testDataTypeHandle;
+        
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         void OriginalLambdaBody([Unity.Burst.NoAlias] ref global::TestData testData)
         {
-            #line 24 "/0/Test0.cs"
-            testData.value++;
-        }
-
-        #line 112 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
+#line 24 "/0/Test0.cs"
+testData.value++;
+            }
+        #line 114 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
         [global::System.Runtime.CompilerServices.CompilerGenerated]
         public void Execute(in global::Unity.Entities.ArchetypeChunk chunk, int batchIndex, bool useEnabledMask, in global::Unity.Burst.Intrinsics.v128 chunkEnabledMask)
         {
+            #line 118 "Temp/GeneratedCode/TestProject/Test0__System_19875963020.g.cs"
             var testDataArrayPtr = global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetChunkNativeArrayIntPtr<global::TestData>(chunk, ref __testDataTypeHandle);
             int chunkEntityCount = chunk.Count;
             if (!useEnabledMask)
             {
-                for (var entityIndex = 0; entityIndex < chunkEntityCount; ++entityIndex)
+                for(var entityIndex = 0; entityIndex < chunkEntityCount; ++entityIndex)
                 {
                     OriginalLambdaBody(ref global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetRefToNativeArrayPtrElement<global::TestData>(testDataArrayPtr, entityIndex));
                 }
@@ -129,7 +132,7 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
                 {
                     int entityIndex = 0;
                     int batchEndIndex = 0;
-                    while (global::Unity.Entities.EnabledBitUtility.TryGetNextRange(chunkEnabledMask, batchEndIndex, out entityIndex, out batchEndIndex))
+                    while (global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeTryGetNextEnabledBitRange(chunkEnabledMask, batchEndIndex, out entityIndex, out batchEndIndex))
                     {
                         while (entityIndex < batchEndIndex)
                         {
@@ -148,10 +151,8 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
                         {
                             OriginalLambdaBody(ref global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetRefToNativeArrayPtrElement<global::TestData>(testDataArrayPtr, entityIndex));
                         }
-
                         mask64 >>= 1;
                     }
-
                     mask64 = chunkEnabledMask.ULong1;
                     for (var entityIndex = 64; entityIndex < chunkEntityCount; ++entityIndex)
                     {
@@ -159,21 +160,23 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
                         {
                             OriginalLambdaBody(ref global::Unity.Entities.Internal.InternalCompilerInterface.UnsafeGetRefToNativeArrayPtrElement<global::TestData>(testDataArrayPtr, entityIndex));
                         }
-
                         mask64 >>= 1;
                     }
                 }
             }
         }
     }
-
-    void BasicEFESystem_123EB51D_LambdaJob_1_Execute()
+    void BasicEFESystem_6F759C06_LambdaJob_1_Execute()
     {
         __TypeHandle.__TestData_RW_ComponentTypeHandle.Update(ref this.CheckedStateRef);
-        var __job = new BasicEFESystem_123EB51D_LambdaJob_1_Job{__testDataTypeHandle = __TypeHandle.__TestData_RW_ComponentTypeHandle};
+        var __job = new BasicEFESystem_6F759C06_LambdaJob_1_Job
+        {
+            __testDataTypeHandle = __TypeHandle.__TestData_RW_ComponentTypeHandle
+        };
+        
         this.CheckedStateRef.Dependency = global::Unity.Entities.Internal.InternalCompilerInterface.JobChunkInterface.ScheduleParallel(__job, __query_1641826536_0, this.CheckedStateRef.Dependency);
     }
-
+    
     TypeHandle __TypeHandle;
     global::Unity.Entities.EntityQuery __query_1641826536_0;
     struct TypeHandle
@@ -184,14 +187,20 @@ public partial class BasicEFESystem : global::Unity.Entities.SystemBase
         {
             __TestData_RW_ComponentTypeHandle = state.GetComponentTypeHandle<global::TestData>(false);
         }
+        
     }
-
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     void __AssignQueries(ref global::Unity.Entities.SystemState state)
     {
-        __query_1641826536_0 = state.GetEntityQuery(new global::Unity.Entities.EntityQueryDesc{All = new global::Unity.Entities.ComponentType[]{global::Unity.Entities.ComponentType.ReadWrite<global::TestData>()}, Any = new global::Unity.Entities.ComponentType[]{}, None = new global::Unity.Entities.ComponentType[]{}, Disabled = new global::Unity.Entities.ComponentType[]{}, Absent = new global::Unity.Entities.ComponentType[]{}, Options = global::Unity.Entities.EntityQueryOptions.Default});
+        var entityQueryBuilder = new global::Unity.Entities.EntityQueryBuilder(global::Unity.Collections.Allocator.Temp);
+        __query_1641826536_0 = 
+            entityQueryBuilder
+                .WithAllRW<global::TestData>()
+                .Build(ref state);
+        entityQueryBuilder.Reset();
+        entityQueryBuilder.Dispose();
     }
-
+    
     protected override void OnCreateForCompiler()
     {
         base.OnCreateForCompiler();

@@ -1,15 +1,21 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 
-namespace Unity.Entities.SourceGen.SystemGenerator.Common
+namespace Unity.Entities.SourceGen.SystemGenerator.Common;
+
+public struct EntityStorageInfoLookupFieldDescription : IEquatable<EntityStorageInfoLookupFieldDescription>, IMemberDescription
 {
-    public struct EntityStorageInfoLookupFieldDescription : IEquatable<EntityStorageInfoLookupFieldDescription>, INonQueryFieldDescription
+    public string GeneratedFieldName => "__EntityStorageInfoLookup";
+    public void AppendMemberDeclaration(IndentedTextWriter w, bool forcePublic = false)
     {
-        public string GeneratedFieldName => "__EntityStorageInfoLookup";
-        public string GetFieldDeclaration(bool forcePublic = false) =>
-            $"[global::Unity.Collections.ReadOnly] {(forcePublic ? "public" : "")} Unity.Entities.EntityStorageInfoLookup {GeneratedFieldName};";
-        public string GetFieldAssignment() =>
-            $@"{GeneratedFieldName} = state.GetEntityStorageInfoLookup();";
-        public bool Equals(EntityStorageInfoLookupFieldDescription other) => true;
-        public override int GetHashCode() => 0;
+        w.Write("[global::Unity.Collections.ReadOnly] ");
+        if (forcePublic)
+            w.Write("public ");
+        w.Write($"Unity.Entities.EntityStorageInfoLookup {GeneratedFieldName};");
+        w.WriteLine();
     }
+    public string GetMemberAssignment() =>
+        $@"{GeneratedFieldName} = state.GetEntityStorageInfoLookup();";
+    public bool Equals(EntityStorageInfoLookupFieldDescription other) => true;
+    public override int GetHashCode() => 0;
 }

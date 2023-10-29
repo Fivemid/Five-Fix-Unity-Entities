@@ -19,7 +19,6 @@ namespace Unity.Entities.Editor.Tests
                 };
 
         [UnityTest]
-        [Ignore("Random crashes - https://jira.unity3d.com/browse/DOTSE-1821")]
         public IEnumerator SystemScheduleWindow_TreeViewFoldingState_PlayToEditorMode()
         {
             yield return new EnterPlayMode();
@@ -53,7 +52,6 @@ namespace Unity.Entities.Editor.Tests
         }
 
         [UnityTest]
-        [Ignore("Random crashes - https://jira.unity3d.com/browse/DOTSE-1821")]
         public IEnumerator SystemScheduleWindow_TreeViewFoldingState_EditorToPlayMode()
         {
             // Editor mode

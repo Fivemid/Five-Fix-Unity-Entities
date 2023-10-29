@@ -12,7 +12,7 @@ public class SystemAPIVerifyTests
     [TestMethod]
     public async Task SystemMethodWithComponentAccessInvocation()
     {
-        var testSource = @"
+        const string testSource = @"
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Entities.Tests;
@@ -46,7 +46,7 @@ public partial struct RotationSpeedSystemForEachISystem : ISystem
     [TestMethod]
     public async Task SystemMethodWithBufferAccessInvocation()
     {
-        var testSource = @"
+        const string testSource = @"
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Entities.Tests;
@@ -86,7 +86,7 @@ public partial struct RotationSpeedSystemForEachISystem : ISystem
     [TestMethod]
     public async Task SystemMethodWithStorageInfoInvocation()
     {
-        var testSource = @"
+        const string testSource = @"
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Entities.Tests;
@@ -122,7 +122,7 @@ public partial struct RotationSpeedSystemForEachISystem : ISystem
     [TestMethod]
     public async Task SystemMethodWithAspectInvocation()
     {
-        var testSource = @"
+        const string testSource = @"
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Entities.Tests;
@@ -149,20 +149,20 @@ public partial struct RotationSpeedSystemForEachISystem : ISystem
     [TestMethod]
     public async Task SystemMethodWithManagedComponent()
     {
-        var testSource = @"
-    using Unity.Burst;
-    using Unity.Entities;
-    using Unity.Entities.Tests;
-    using static Unity.Entities.SystemAPI;
-    public partial struct SomeSystem : ISystem {
-        public void OnCreate(ref SystemState state){}
-        public void OnDestroy(ref SystemState state){}
-        public void OnUpdate(ref SystemState state){
-            var e = state.EntityManager.CreateEntity();
-            state.EntityManager.AddComponentData(e, new EcsTestManagedComponent{value = ""cake""});
-            var comp = SystemAPI.ManagedAPI.GetSingleton<EcsTestManagedComponent>().value;
-        }
+        const string testSource = @"
+using Unity.Burst;
+using Unity.Entities;
+using Unity.Entities.Tests;
+using static Unity.Entities.SystemAPI;
+public partial struct SomeSystem : ISystem {
+    public void OnCreate(ref SystemState state){}
+    public void OnDestroy(ref SystemState state){}
+    public void OnUpdate(ref SystemState state){
+        var e = state.EntityManager.CreateEntity();
+        state.EntityManager.AddComponentData(e, new EcsTestManagedComponent{value = ""cake""});
+        var comp = SystemAPI.ManagedAPI.GetSingleton<EcsTestManagedComponent>().value;
     }
+}
 ";
 
         await VerifyCS.VerifySourceGeneratorAsync(testSource, nameof(SystemMethodWithManagedComponent), "Test0__System_19875963020.g.cs");
@@ -171,31 +171,55 @@ public partial struct RotationSpeedSystemForEachISystem : ISystem
     [TestMethod]
     public async Task SystemAPIInPartialMethod()
     {
-        var testSource = @"
-    using Unity.Burst;
-    using Unity.Entities;
-    using Unity.Entities.Tests;
+        const string testSource = @"
+using Unity.Burst;
+using Unity.Entities;
+using Unity.Entities.Tests;
 
-    public unsafe partial struct PartialMethodSystem
+public unsafe partial struct PartialMethodSystem
+{
+    partial void CustomOnUpdate(ref SystemState state)
     {
-        partial void CustomOnUpdate(ref SystemState state)
-        {
-            var tickSingleton2 = SystemAPI.GetSingleton<EcsTestData>();
-        }
+        var tickSingleton2 = SystemAPI.GetSingleton<EcsTestData>();
+    }
+}
+
+public unsafe partial struct PartialMethodSystem : ISystem
+{
+    public void OnUpdate(ref SystemState state)
+    {
+        CustomOnUpdate(ref state);
     }
 
-    public unsafe partial struct PartialMethodSystem : ISystem
-    {
-        public void OnUpdate(ref SystemState state)
-        {
-            CustomOnUpdate(ref state);
-        }
-
-        partial void CustomOnUpdate(ref SystemState state);
-    }
+    partial void CustomOnUpdate(ref SystemState state);
+}
 ";
 
         await VerifyCS.VerifySourceGeneratorAsync(testSource, nameof(SystemAPIInPartialMethod), "Test0__System_19875963020.g.cs");
+    }
+
+    [TestMethod]
+    public async Task NestedSystemAPIInvocation()
+    {
+        const string testSource = @"
+using Unity.Burst;
+using Unity.Entities;
+using Unity.Entities.Tests;
+
+public unsafe partial struct PartialMethodSystem : ISystem
+{
+    public void OnUpdate(ref SystemState state)
+    {
+        ToggleEnabled(default(Entity), ref state);
+    }
+
+    void ToggleEnabled(Entity entity, ref SystemState state)
+    {
+        SystemAPI.SetComponentEnabled<EcsTestDataEnableable>(entity, !SystemAPI.IsComponentEnabled<EcsTestDataEnableable>(entity));
+    }
+}";
+
+        await VerifyCS.VerifySourceGeneratorAsync(testSource, nameof(NestedSystemAPIInvocation), "Test0__System_19875963020.g.cs");
     }
 }
 

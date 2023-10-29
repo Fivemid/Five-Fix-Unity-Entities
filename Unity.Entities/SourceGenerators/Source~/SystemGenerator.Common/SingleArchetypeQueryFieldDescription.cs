@@ -1,4 +1,5 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
@@ -9,15 +10,15 @@ namespace Unity.Entities.SourceGen.SystemGenerator.Common
     public readonly struct SingleArchetypeQueryFieldDescription : IEquatable<SingleArchetypeQueryFieldDescription>, IQueryFieldDescription
     {
         readonly Archetype _archetype;
-        readonly IReadOnlyCollection<Query> _changeFilterTypes;
+        readonly IReadOnlyList<Query> _changeFilterTypes;
         readonly string _queryStorageFieldName;
 
         public string GetFieldDeclaration(string generatedQueryFieldName, bool forcePublic = false)
-            => $"{(forcePublic ? "public" : "")} global::Unity.Entities.EntityQuery {generatedQueryFieldName};";
+            => $"{(forcePublic ? "public " : "")}global::Unity.Entities.EntityQuery {generatedQueryFieldName};";
 
         public SingleArchetypeQueryFieldDescription(
             Archetype archetype,
-            IReadOnlyCollection<Query> changeFilterTypes = null,
+            IReadOnlyList<Query> changeFilterTypes = null,
             string queryStorageFieldName = null)
         {
             _archetype = archetype;
@@ -57,128 +58,116 @@ namespace Unity.Entities.SourceGen.SystemGenerator.Common
         public static bool operator ==(SingleArchetypeQueryFieldDescription left, SingleArchetypeQueryFieldDescription right) => Equals(left, right);
         public static bool operator !=(SingleArchetypeQueryFieldDescription left, SingleArchetypeQueryFieldDescription right) => !Equals(left, right);
 
-        /// <summary>
-        /// Use EntityQueryBuilder to create the query
-        /// Support creating queries with aspects
-        /// </summary>
-        /// <param name="systemStateName"></param>
-        /// <param name="generatedQueryFieldName"></param>
-        /// <returns></returns>
-        string EntityQueryWithEntityQueryBuilder(string generatedQueryFieldName)
-        {
-            var code = new System.Text.StringBuilder();
-            var codeAspect = new System.Text.StringBuilder();
-            code.AppendLine($@"{generatedQueryFieldName} = new global::Unity.Entities.EntityQueryBuilder(global::Unity.Collections.Allocator.Temp)");
-            foreach (var comp in _archetype.All.Concat(_changeFilterTypes))
-                if (comp.TypeSymbol.IsAspect())
-                    codeAspect.AppendLine($".WithAspect<{comp.TypeSymbol.ToFullName()}>()");
-                else
-                    code.AppendLine($@".WithAll{(comp.IsReadOnly ? "" : "RW")}<{comp.TypeSymbol.ToFullName()}>()");
-            foreach (var comp in _archetype.Any)
-                code.AppendLine($@".WithAny<{comp.TypeSymbol.ToFullName()}>()");
-            foreach (var comp in _archetype.None)
-                code.AppendLine($@".WithNone<{comp.TypeSymbol.ToFullName()}>()");
-            foreach (var comp in _archetype.Disabled)
-                code.AppendLine($@".WithDisabled<{comp.TypeSymbol.ToFullName()}>()");
-            foreach (var comp in _archetype.Absent)
-                code.AppendLine($@".WithAbsent<{comp.TypeSymbol.ToFullName()}>()");
-
-            // Append all ".WithAspect" calls. They must be done after all "WithAll", "WithAny" and "WithNone" calls to avoid component aliasing
-            code.Append(codeAspect);
-
-            if(_archetype.Options != EntityQueryOptions.Default)
-                code.Append($".WithOptions({_archetype.Options.GetFlags().Select(flag => $"global::Unity.Entities.EntityQueryOptions.{flag.ToString()}").SeparateByBinaryOr()})");
-
-            code.AppendLine($".Build(ref state);");
-            return code.ToString();
-        }
-
-        public string EntityQueryFieldAssignment(string generatedQueryFieldName)
-        {
-            // if there are any aspects in our query, use the EntityQueryBuilder to create the query
-            if (_archetype.All.Concat(_changeFilterTypes).Any(x => x.TypeSymbol.IsAspect()))
-                return EntityQueryWithEntityQueryBuilder(generatedQueryFieldName);
-
-            var entityQuerySetup =
-                $@"{generatedQueryFieldName} = state.GetEntityQuery
-                    (
-                        new global::Unity.Entities.EntityQueryDesc
-                        {{
-                            All = {DistinctQueryTypesFor()},
-                            Any = new global::Unity.Entities.ComponentType[] {{
-                                {_archetype.Any.Select(q => q.ToString()).Distinct().SeparateByCommaAndNewLine()}
-                            }},
-                            None = new global::Unity.Entities.ComponentType[] {{
-                                {_archetype.None.Select(q => q.ToString()).Distinct().SeparateByCommaAndNewLine()}
-                            }},
-                            Disabled = new global::Unity.Entities.ComponentType[] {{
-                                {_archetype.Disabled.Select(q => q.ToString()).Distinct().SeparateByCommaAndNewLine()}
-                            }},
-                            Absent = new global::Unity.Entities.ComponentType[] {{
-                                {_archetype.Absent.Select(q => q.ToString()).Distinct().SeparateByCommaAndNewLine()}
-                            }},
-                            Options =
-                                {_archetype.Options.GetFlags().Select(flag => $"global::Unity.Entities.EntityQueryOptions.{flag.ToString()}").SeparateByBinaryOr()}
-                        }}
-                    );";
-
-            if (_queryStorageFieldName != null)
-                entityQuerySetup = $"{_queryStorageFieldName} = " + entityQuerySetup;
-
-            if (_changeFilterTypes.Any())
-            {
-                entityQuerySetup +=
-                    $@"{generatedQueryFieldName}.SetChangedVersionFilter(new ComponentType[{_changeFilterTypes.Count}]
-				    {{
-                        {_changeFilterTypes.Select(q => q.ToString()).SeparateByComma()}
-                    }});";
-            }
-
-            return entityQuerySetup;
-        }
-
-        string DistinctQueryTypesFor()
+        static (HashSet<string> readOnlyTypeNames, HashSet<string> readWriteTypeNames) GetDistinctRequiredTypeNames(IEnumerable<Query> presentTypes)
         {
             var readOnlyTypeNames = new HashSet<string>();
             var readWriteTypeNames = new HashSet<string>();
 
-            int componentCount = 0;
+            foreach (var type in presentTypes)
+                AddDistinctQueryType(type, type.IsReadOnly);
 
-            void AddQueryType(ITypeSymbol queryType, bool isReadOnly)
+            return (readOnlyTypeNames, readWriteTypeNames);
+
+            void AddDistinctQueryType(Query q, bool isReadOnly)
             {
-                if (queryType == null)
-                    return;
-
-                var queryTypeFullName = queryType.ToFullName();
-                ++componentCount;
+                var queryTypeFullName = q.TypeSymbol.ToFullName();
                 if (!isReadOnly)
                 {
                     readOnlyTypeNames.Remove(queryTypeFullName);
                     readWriteTypeNames.Add(queryTypeFullName);
                 }
-                else
-                {
-                    if (!readWriteTypeNames.Contains(queryTypeFullName) &&
-                        !readOnlyTypeNames.Contains(queryTypeFullName))
-                    {
-                        readOnlyTypeNames.Add(queryTypeFullName);
-                    }
-                }
+                else if (!readWriteTypeNames.Contains(queryTypeFullName))
+                    readOnlyTypeNames.Add(queryTypeFullName);
             }
+        }
 
-            foreach (var allComponentType in _archetype.All)
-                AddQueryType(allComponentType.TypeSymbol, allComponentType.IsReadOnly);
+        public void WriteEntityQueryFieldAssignment(IndentedTextWriter writer, string generatedQueryFieldName)
+        {
+            if (_queryStorageFieldName != null)
+                writer.WriteLine($"{_queryStorageFieldName} = ");
 
-            foreach (var changeFilterType in _changeFilterTypes)
-                AddQueryType(changeFilterType.TypeSymbol, changeFilterType.IsReadOnly);
+            var codeAspect = new List<string>(8);
+            writer.WriteLine($"{generatedQueryFieldName} = ");
+            writer.Indent++;
+            writer.WriteLine("entityQueryBuilder");
+            writer.Indent++;
 
-            if (componentCount == 0)
-                return "new global::Unity.Entities.ComponentType[]{}";
+            var requiredTypes = _archetype.All.Concat(_changeFilterTypes);
+            var presentComponentTypes = new List<Query>(capacity: 8);
 
-            var eComponents = readOnlyTypeNames
-                .Select(type => $@"global::Unity.Entities.ComponentType.ReadOnly<{type}>()")
-                .Concat(readWriteTypeNames.Select(type => $@"global::Unity.Entities.ComponentType.ReadWrite<{type}>()"));
-            return $"new global::Unity.Entities.ComponentType[] {{{eComponents.Distinct().SeparateByCommaAndNewLine()}}}";
+            foreach (var comp in requiredTypes)
+                if (comp.TypeSymbol.IsAspect())
+                    codeAspect.Add($".WithAspect<{comp.TypeSymbol.ToFullName()}>()");
+                else
+                    presentComponentTypes.Add(comp);
+
+            foreach (var comp in _archetype.Any)
+            {
+                writer.WriteLine(comp.IsReadOnly
+                    ? $".WithAny<{comp.TypeSymbol.ToFullName()}>()"
+                    : $".WithAnyRW<{comp.TypeSymbol.ToFullName()}>()");
+            }
+            foreach (var comp in _archetype.None)
+            {
+                writer.WriteLine(comp.IsReadOnly
+                    ? $".WithNone<{comp.TypeSymbol.ToFullName()}>()"
+                    // We support specifying an enableable type as a `None` component *and* as an iterable query type in the same `SystemAPI.Query` invocation.
+                    // Users may write e.g. `SystemAPI.Query<EnabledRefRW<MyEnableableComponent>>().WithNone<MyEnableableComponent>()` in order to specifically iterate through
+                    // *disabled* `MyEnableableComponent`s. In that case, `MyEnableableComponent` is labelled a `None` component with read-write access, since `EnabledRefRW`
+                    // usages require read-write access. Since `.WithNoneRW` is not available as part of the `EntityQueryBuilder` public API, we can use `.WithDisabledRW` instead.
+                    : $".WithDisabledRW<{comp.TypeSymbol.ToFullName()}>()");
+            }
+            foreach (var comp in _archetype.Disabled)
+            {
+                writer.WriteLine(comp.IsReadOnly
+                    ? $".WithDisabled<{comp.TypeSymbol.ToFullName()}>()"
+                    : $".WithDisabledRW<{comp.TypeSymbol.ToFullName()}>()");
+            }
+            foreach (var comp in _archetype.Present)
+            {
+                writer.WriteLine(comp.IsReadOnly
+                    ? $".WithPresent<{comp.TypeSymbol.ToFullName()}>()"
+                    : $".WithPresentRW<{comp.TypeSymbol.ToFullName()}>()");
+            }
+            foreach (var comp in _archetype.Absent)
+                writer.WriteLine($".WithAbsent<{comp.TypeSymbol.ToFullName()}>()");
+
+            var distinctPresentTypeNames = GetDistinctRequiredTypeNames(presentComponentTypes);
+            foreach (var ro in distinctPresentTypeNames.readOnlyTypeNames)
+                writer.WriteLine($".WithAll<{ro}>()");
+
+            foreach (var ro in distinctPresentTypeNames.readWriteTypeNames)
+                writer.WriteLine($".WithAllRW<{ro}>()");
+
+            // Append all ".WithAspect" calls. They must be done after all "WithAll", "WithAny" and "WithNone" calls to avoid component aliasing
+            foreach (var code in codeAspect)
+                writer.WriteLine(code);
+
+            if(_archetype.Options != EntityQueryOptions.Default)
+                writer.WriteLine($".WithOptions({_archetype.Options.GetAsFlagStringSeperatedByOr()})");
+
+            writer.WriteLine(".Build(ref state);");
+            writer.Indent--;
+            writer.Indent--;
+            writer.WriteLine("entityQueryBuilder.Reset();");
+
+            if (_changeFilterTypes.Any())
+            {
+                writer.WriteLine($@"{generatedQueryFieldName}.SetChangedVersionFilter(new ComponentType[{_changeFilterTypes.Count}]");
+                writer.WriteLine("{");
+                writer.Indent++;
+
+                for (var index = 0; index < _changeFilterTypes.Count; index++)
+                {
+                    writer.WriteLine($"new ComponentType(typeof({_changeFilterTypes[index].TypeSymbol.ToFullName()}))");
+
+                    if (index < _changeFilterTypes.Count - 1)
+                        writer.WriteLine(",");
+                }
+
+                writer.Indent--;
+                writer.WriteLine("});");
+            }
         }
     }
 }

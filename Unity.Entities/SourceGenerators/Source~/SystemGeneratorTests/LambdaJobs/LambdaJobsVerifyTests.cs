@@ -13,34 +13,33 @@ public class LambdaJobsVerifyTests
     public async Task BasicEFE()
     {
         const string source = @"
-            using Unity.Burst;
-            using Unity.Entities;
-            using Unity.Entities.Tests;
+using Unity.Burst;
+using Unity.Entities;
+using Unity.Entities.Tests;
 
-            public struct TestData : IComponentData
+public struct TestData : IComponentData
+{
+    public int value;
+}
+
+public partial class BasicEFESystem : SystemBase
+{
+    protected override void OnUpdate()
+    {
+        Entities.ForEach((ref TestData testData) =>
             {
-                public int value;
-            }
+                testData.value++;
+            })
+            .WithBurst(Unity.Burst.FloatMode.Deterministic, Unity.Burst.FloatPrecision.Low, true)
+            .ScheduleParallel();
 
-            public partial class BasicEFESystem : SystemBase
+        Entities.ForEach((ref TestData testData) =>
             {
-                protected override void OnUpdate()
-                {
-                    Entities.ForEach((ref TestData testData) =>
-                        {
-                            testData.value++;
-                        })
-                        .WithBurst(Unity.Burst.FloatMode.Deterministic, Unity.Burst.FloatPrecision.Low, true)
-                        .ScheduleParallel();
-
-                    Entities.ForEach((ref TestData testData) =>
-                        {
-                            testData.value++;
-                        })
-                        .ScheduleParallel();
-                }
-            }
-            ";
+                testData.value++;
+            })
+            .ScheduleParallel();
+    }
+}";
 
         await VerifyCS.VerifySourceGeneratorAsync(source, nameof(BasicEFE), "Test0__System_19875963020.g.cs");
     }

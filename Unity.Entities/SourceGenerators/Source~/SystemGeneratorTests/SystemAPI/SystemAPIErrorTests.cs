@@ -27,7 +27,7 @@ public class SystemAPIErrorTests
                     var hadComp = {|#0:HasComponent<T>(default)|};
                 }
             }";
-        var expected = VerifyCS.CompilerError(nameof(SystemAPIErrors.SGSA0001)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(SystemApiContextErrors.SGSA0001)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -45,7 +45,7 @@ public class SystemAPIErrorTests
                     var lookup = {|#0:GetComponentLookup<EcsTestData>(ro)|};
                 }
             }";
-        var expected = VerifyCS.CompilerError(nameof(SystemAPIErrors.SGSA0002)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(SystemApiContextErrors.SGSA0002)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 }

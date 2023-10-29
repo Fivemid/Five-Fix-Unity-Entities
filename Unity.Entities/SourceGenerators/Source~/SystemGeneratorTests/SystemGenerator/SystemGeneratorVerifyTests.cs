@@ -12,22 +12,22 @@ namespace Unity.Entities.SourceGenerators
         [TestMethod]
         public async Task EntitiesForEachNonCapturing()
         {
-            var testSource = @"
-                using Unity.Entities;
-                using Unity.Mathematics;
-                using Unity.Burst;
+            const string testSource = @"
+using Unity.Entities;
+using Unity.Mathematics;
+using Unity.Burst;
 
-                struct Translation : IComponentData { public float Value; }
-                struct TagComponent1 : IComponentData {}
-                struct TagComponent2 : IComponentData {}
+struct Translation : IComponentData { public float Value; }
+struct TagComponent1 : IComponentData {}
+struct TagComponent2 : IComponentData {}
 
-                partial class EntitiesForEachNonCapturing : SystemBase
-                {
-                    protected override void OnUpdate()
-                    {
-                        Entities.ForEach((ref Translation translation, ref TagComponent1 tag1, in TagComponent2 tag2) => { translation.Value += 5; }).Run();
-                    }
-                }";
+partial class EntitiesForEachNonCapturing : SystemBase
+{
+    protected override void OnUpdate()
+    {
+        Entities.ForEach((ref Translation translation, ref TagComponent1 tag1, in TagComponent2 tag2) => { translation.Value += 5; }).Run();
+    }
+}";
 
             await VerifyCS.VerifySourceGeneratorAsync(testSource, nameof(EntitiesForEachNonCapturing), "Test0__System_19875963020.g.cs");
         }
@@ -35,18 +35,18 @@ namespace Unity.Entities.SourceGenerators
         [TestMethod]
         public async Task EntitiesForEachCachesBufferTypeHandle()
         {
-            var testSource = @"
-                using Unity.Entities;
+            const string testSource = @"
+using Unity.Entities;
 
-                struct BufferData : IBufferElementData { public float Value; }
+struct BufferData : IBufferElementData { public float Value; }
 
-                partial class EntitiesForEachDynamicBuffer : SystemBase
-                {
-                    protected override void OnUpdate()
-                    {
-                        Entities.ForEach((DynamicBuffer<BufferData> buf) => { }).Run();
-                    }
-                }";
+partial class EntitiesForEachDynamicBuffer : SystemBase
+{
+    protected override void OnUpdate()
+    {
+        Entities.ForEach((DynamicBuffer<BufferData> buf) => { }).Run();
+    }
+}";
             await VerifyCS.VerifySourceGeneratorAsync(testSource, nameof(EntitiesForEachCachesBufferTypeHandle), "Test0__System_19875963020.g.cs");
         }
     }

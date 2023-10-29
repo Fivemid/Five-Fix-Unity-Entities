@@ -5,8 +5,8 @@
     <NoWarn>RS2007</NoWarn>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>9</LangVersion>
-    <AssemblyName>Unity.Entities.Analyzer</AssemblyName>
-    <RootNamespace>Unity.Entities.Analyzer</RootNamespace>
+    <Deterministic>True</Deterministic>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
 
   <ItemGroup>

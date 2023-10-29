@@ -13,7 +13,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
         static bool TryGetAllTypeArgumentSymbolsOfMethod(
             SystemDescription systemDescription,
             SyntaxNode node,
-            Dictionary<string, List<InvocationExpressionSyntax>> allMethodInvocations,
+            IReadOnlyDictionary<string, List<InvocationExpressionSyntax>> allMethodInvocations,
             string methodName,
             QueryType resultsShouldHaveThisQueryType,
             out List<Query> result)
@@ -21,7 +21,6 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
             result = new List<Query>();
 
             var isValid = true;
-            var semanticModel = systemDescription.SemanticModel;
             var location = node.GetLocation();
 
             if (!allMethodInvocations.ContainsKey(methodName))
@@ -29,7 +28,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
 
             var symbols =
                 allMethodInvocations[methodName]
-                    .Select(methodInvocation => (IMethodSymbol)semanticModel.GetSymbolInfo(methodInvocation).Symbol)
+                    .Select(methodInvocation => (IMethodSymbol)systemDescription.SemanticModel.GetSymbolInfo(methodInvocation).Symbol)
                     .Where(symbol => symbol != null);
 
             foreach (var symbol in symbols)
@@ -60,29 +59,13 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
             get
             {
                 foreach (var kvp in EntityQueryCandidatesGroupedBySystemType)
-                    foreach (var candidate in kvp.Value)
-                        yield return (candidate.EntitiesSyntaxNode, candidate.ContainingSystemType);
+                    foreach (var node in kvp.Value)
+                        yield return (node, kvp.Key);
             }
         }
 
         public bool RequiresReferenceToBurst => false;
-
-        public struct QueryCandidate
-        {
-            public SyntaxNode EntitiesSyntaxNode { get; private set; }
-            public TypeDeclarationSyntax ContainingSystemType { get; private set; }
-
-            public static QueryCandidate From(SyntaxNode entitiesSyntaxNode)
-            {
-                return new QueryCandidate
-                {
-                    EntitiesSyntaxNode = entitiesSyntaxNode,
-                    ContainingSystemType = entitiesSyntaxNode.Ancestors().OfType<TypeDeclarationSyntax>().First(),
-                };
-            }
-        }
-
-        Dictionary<TypeDeclarationSyntax, List<QueryCandidate>> EntityQueryCandidatesGroupedBySystemType { get; } = new Dictionary<TypeDeclarationSyntax, List<QueryCandidate>>();
+        Dictionary<TypeDeclarationSyntax, List<SyntaxNode>> EntityQueryCandidatesGroupedBySystemType { get; } = new Dictionary<TypeDeclarationSyntax, List<SyntaxNode>>();
 
         static string[] BulkOperationMethodNames { get; } =
         {
@@ -99,14 +82,13 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
             "ToQuery",
         };
 
-        public void OnReceiveSyntaxNode(SyntaxNode entitiesSyntaxNode)
+        public void OnReceiveSyntaxNode(SyntaxNode entitiesSyntaxNode, Dictionary<SyntaxNode, CandidateSyntax> candidateOwnership)
         {
             if (entitiesSyntaxNode is IdentifierNameSyntax identifierNameSyntax
                 && identifierNameSyntax.Parent.IsKind(SyntaxKind.SimpleMemberAccessExpression)
                 && identifierNameSyntax.Identifier.Text == "Entities")
             {
-                var newQueryCandidate = QueryCandidate.From(entitiesSyntaxNode);
-                EntityQueryCandidatesGroupedBySystemType.Add(newQueryCandidate.ContainingSystemType, newQueryCandidate);
+                EntityQueryCandidatesGroupedBySystemType.Add(entitiesSyntaxNode.Ancestors().OfType<TypeDeclarationSyntax>().First(), entitiesSyntaxNode);
             }
         }
 
@@ -124,7 +106,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
 
                 var bulkOperationQueryMethodInvocations = new Dictionary<string, List<InvocationExpressionSyntax>>();
 
-                foreach (var invocationExpressionSyntax in candidate.EntitiesSyntaxNode.Ancestors().OfType<InvocationExpressionSyntax>())
+                foreach (var invocationExpressionSyntax in candidate.Ancestors().OfType<InvocationExpressionSyntax>())
                 {
                     bool isEntitiesForEachInvocation = false;
 
@@ -181,6 +163,9 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
                                     case "WithAbsent":
                                         bulkOperationQueryMethodInvocations.Add("WithAbsent", invocationExpressionSyntax);
                                         break;
+                                    case "WithPresent":
+                                        bulkOperationQueryMethodInvocations.Add("WithPresent", invocationExpressionSyntax);
+                                        break;
                                     case "WithChangeFilter":
                                         bulkOperationQueryMethodInvocations.Add("WithChangeFilter", invocationExpressionSyntax);
                                         break;
@@ -204,17 +189,18 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
 
                 if (foundMethodInvocationsDisallowedByBulkOperations)
                 {
-                    SystemGeneratorErrors.DC0062(systemDescription, candidate.EntitiesSyntaxNode.GetLocation());
+                    SystemGeneratorErrors.DC0062(systemDescription, candidate.GetLocation());
                     break;
                 }
 
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithAll", QueryType.All, out var withAllTypes);
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithAny", QueryType.Any, out var withAnyTypes);
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithNone", QueryType.None, out var withNoneTypes);
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithDisabled", QueryType.Disabled, out var withDisabledTypes);
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithAbsent", QueryType.Absent, out var withAbsentTypes);
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithChangeFilter", QueryType.ChangeFilter, out var withChangeFilterTypes);
-                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate.EntitiesSyntaxNode, bulkOperationQueryMethodInvocations, "WithSharedComponentFilter", QueryType.All, out var withSharedComponentFilterTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithAll", QueryType.All, out var withAllTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithAny", QueryType.Any, out var withAnyTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithNone", QueryType.None, out var withNoneTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithDisabled", QueryType.Disabled, out var withDisabledTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithAbsent", QueryType.Absent, out var withAbsentTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithPresent", QueryType.Absent, out var withPresentTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithChangeFilter", QueryType.ChangeFilter, out var withChangeFilterTypes);
+                success &= TryGetAllTypeArgumentSymbolsOfMethod(systemDescription, candidate, bulkOperationQueryMethodInvocations, "WithSharedComponentFilter", QueryType.All, out var withSharedComponentFilterTypes);
 
                 var queryDescription =
                     new SingleArchetypeQueryFieldDescription(
@@ -223,10 +209,15 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
                             withAnyTypes,
                             withNoneTypes,
                             withDisabledTypes,
+                            withPresentTypes,
                             withAbsentTypes),
                         changeFilterTypes: withChangeFilterTypes);
 
-                var generatedQueryFieldName = systemDescription.HandlesDescription.GetOrCreateQueryField(queryDescription);
+                var generatedQueryFieldName = systemDescription.QueriesAndHandles.GetOrCreateQueryField(queryDescription);
+
+                systemDescription.CandidateNodes.Add(
+                    bulkOperationInvocationNodeToReplace,
+                    new CandidateSyntax(CandidateType.EntityQueryBulkOps, CandidateFlags.None, bulkOperationInvocationNodeToReplace));
 
                 if (bulkOperationInvocationText != "ToQuery")
                 {
@@ -244,16 +235,11 @@ namespace Unity.Entities.SourceGen.SystemGenerator.EntityQueryBulkOperations
                     originalToReplacementNodes.Add(bulkOperationInvocationNodeToReplace, replacementSyntaxNode);
                 }
                 else
-                {
                     originalToReplacementNodes.Add(bulkOperationInvocationNodeToReplace, SyntaxFactory.IdentifierName(generatedQueryFieldName));
-                }
             }
 
             if (originalToReplacementNodes.Count > 0)
-            {
-                var bulkOperationRewriter = new BulkOperationRewriter(originalToReplacementNodes);
-                systemDescription.Rewriters.Add(bulkOperationRewriter);
-            }
+                systemDescription.SyntaxWalkers.Add(Module.EntityQueryBulkOps, new EntityQueryBulkOperationSyntaxWalker(originalToReplacementNodes));
 
             return success;
         }

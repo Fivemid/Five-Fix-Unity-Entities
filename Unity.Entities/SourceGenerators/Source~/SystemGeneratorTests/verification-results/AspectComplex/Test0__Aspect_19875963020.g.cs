@@ -56,7 +56,7 @@ public readonly partial struct AspectSimple : global::Unity.Entities.IAspect, gl
 	/// A container type that provides access to instances of the enclosing Aspect type, indexed by <see cref="Unity.Entities.Entity"/>.
 	/// Equivalent to <see cref="global::Unity.Entities.ComponentLookup{T}"/> but for aspect types.
 	/// Constructed from an system state via its constructor.
-	public struct Lookup
+	public struct Lookup : global::Unity.Entities.Internal.InternalCompilerInterface.IAspectLookup<AspectSimple>
 	{
 		global::Unity.Entities.ComponentLookup<global::Unity.Entities.Tests.EcsTestData> AspectSimple_DataCAc;
 
@@ -237,7 +237,7 @@ public readonly partial struct AspectSimple : global::Unity.Entities.IAspect, gl
 	/// So it completes all write dependencies of the components, buffers, etc. to allow for reading.
 	/// </summary>
 	/// <param name="state">The <see cref="global::Unity.Entities.SystemState"/> containing an <see cref="global::Unity.Entities.EntityManager"/> storing all dependencies.</param>
-	public static void CompleteDependencyBeforeRO(ref global::Unity.Entities.SystemState state)
+	public void CompleteDependencyBeforeRO(ref global::Unity.Entities.SystemState state)
 	{
 		state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsTestData>();
 	}
@@ -248,7 +248,7 @@ public readonly partial struct AspectSimple : global::Unity.Entities.IAspect, gl
 	/// and it completes all read dependencies, so we can write to it.
 	/// </summary>
 	/// <param name="state">The <see cref="global::Unity.Entities.SystemState"/> containing an <see cref="global::Unity.Entities.EntityManager"/> storing all dependencies.</param>
-	public static void CompleteDependencyBeforeRW(ref global::Unity.Entities.SystemState state)
+	public void CompleteDependencyBeforeRW(ref global::Unity.Entities.SystemState state)
 	{
 		state.EntityManager.CompleteDependencyBeforeRW<global::Unity.Entities.Tests.EcsTestData>();
 	}
@@ -339,7 +339,7 @@ namespace AspectTests
 		/// A container type that provides access to instances of the enclosing Aspect type, indexed by <see cref="Unity.Entities.Entity"/>.
 		/// Equivalent to <see cref="global::Unity.Entities.ComponentLookup{T}"/> but for aspect types.
 		/// Constructed from an system state via its constructor.
-		public struct Lookup
+		public struct Lookup : global::Unity.Entities.Internal.InternalCompilerInterface.IAspectLookup<Aspect2>
 		{
 			global::Unity.Entities.EntityStorageInfoLookup _m_Esil;
 			global::Unity.Entities.BufferLookup<global::Unity.Entities.Tests.EcsIntElement> Aspect2_DynamicBufferBAc;
@@ -629,7 +629,7 @@ namespace AspectTests
 		/// So it completes all write dependencies of the components, buffers, etc. to allow for reading.
 		/// </summary>
 		/// <param name="state">The <see cref="global::Unity.Entities.SystemState"/> containing an <see cref="global::Unity.Entities.EntityManager"/> storing all dependencies.</param>
-		public static void CompleteDependencyBeforeRO(ref global::Unity.Entities.SystemState state)
+		public void CompleteDependencyBeforeRO(ref global::Unity.Entities.SystemState state)
 		{
 			state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsIntElement>();
 			state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsTestData>();
@@ -646,7 +646,7 @@ namespace AspectTests
 		/// and it completes all read dependencies, so we can write to it.
 		/// </summary>
 		/// <param name="state">The <see cref="global::Unity.Entities.SystemState"/> containing an <see cref="global::Unity.Entities.EntityManager"/> storing all dependencies.</param>
-		public static void CompleteDependencyBeforeRW(ref global::Unity.Entities.SystemState state)
+		public void CompleteDependencyBeforeRW(ref global::Unity.Entities.SystemState state)
 		{
 			state.EntityManager.CompleteDependencyBeforeRW<global::Unity.Entities.Tests.EcsIntElement>();
 			state.EntityManager.CompleteDependencyBeforeRW<global::Unity.Entities.Tests.EcsTestData>();
@@ -753,7 +753,7 @@ namespace AspectTests
 		/// A container type that provides access to instances of the enclosing Aspect type, indexed by <see cref="Unity.Entities.Entity"/>.
 		/// Equivalent to <see cref="global::Unity.Entities.ComponentLookup{T}"/> but for aspect types.
 		/// Constructed from an system state via its constructor.
-		public struct Lookup
+		public struct Lookup : global::Unity.Entities.Internal.InternalCompilerInterface.IAspectLookup<AspectNestedAliasing>
 		{
 			global::Unity.Entities.EntityStorageInfoLookup _m_Esil;
 			global::Unity.Entities.BufferLookup<global::Unity.Entities.Tests.EcsIntElement> AspectNestedAliasing_DynamicBuffer;
@@ -1043,7 +1043,7 @@ namespace AspectTests
 		/// So it completes all write dependencies of the components, buffers, etc. to allow for reading.
 		/// </summary>
 		/// <param name="state">The <see cref="global::Unity.Entities.SystemState"/> containing an <see cref="global::Unity.Entities.EntityManager"/> storing all dependencies.</param>
-		public static void CompleteDependencyBeforeRO(ref global::Unity.Entities.SystemState state)
+		public void CompleteDependencyBeforeRO(ref global::Unity.Entities.SystemState state)
 		{
 			state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsIntElement>();
 			state.EntityManager.CompleteDependencyBeforeRO<global::Unity.Entities.Tests.EcsTestData>();
@@ -1060,7 +1060,7 @@ namespace AspectTests
 		/// and it completes all read dependencies, so we can write to it.
 		/// </summary>
 		/// <param name="state">The <see cref="global::Unity.Entities.SystemState"/> containing an <see cref="global::Unity.Entities.EntityManager"/> storing all dependencies.</param>
-		public static void CompleteDependencyBeforeRW(ref global::Unity.Entities.SystemState state)
+		public void CompleteDependencyBeforeRW(ref global::Unity.Entities.SystemState state)
 		{
 			state.EntityManager.CompleteDependencyBeforeRW<global::Unity.Entities.Tests.EcsIntElement>();
 			state.EntityManager.CompleteDependencyBeforeRW<global::Unity.Entities.Tests.EcsTestData>();

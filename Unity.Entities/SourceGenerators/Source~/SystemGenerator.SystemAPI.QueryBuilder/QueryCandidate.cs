@@ -35,8 +35,10 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
             });
 
             bool IsBuildNode(InvocationExpressionSyntax invocationExpressionSyntax) =>
-                invocationExpressionSyntax.Expression is MemberAccessExpressionSyntax memberAccessExpressionSyntax
-                && memberAccessExpressionSyntax.Name.Identifier.ValueText == "Build";
+                invocationExpressionSyntax.Expression is MemberAccessExpressionSyntax { Name: { Identifier:
+                {
+                    ValueText: "Build"
+                } } };
         }
     }
 }

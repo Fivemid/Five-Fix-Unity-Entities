@@ -2,7 +2,6 @@
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
 using Unity.Entities.SourceGen.Common;
@@ -10,18 +9,14 @@ using Unity.Entities.SourceGen.SystemGenerator.Common;
 
 namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
 {
-    public class SystemAPIQueryBuilderDescription
+    public class SystemApiQueryBuilderDescription
     {
-        readonly QueryCandidate _queryCandidate;
         readonly StringBuilder _invocationsBeforeBuild = new StringBuilder();
 
         public readonly bool IsBurstEnabled;
         public readonly List<Archetype> Archetypes = new List<Archetype>();
         public readonly List<Location> QueryFinalizingLocations = new List<Location>();
         public readonly SystemDescription SystemDescription;
-
-        public SyntaxNode NodeToReplace => _queryCandidate.BuildNode;
-        public SyntaxNode GetReplacementNode() => SyntaxFactory.IdentifierName(GeneratedEntityQueryFieldName);
 
         public string GeneratedEntityQueryFieldName { get; set; }
         public bool Success { get; set; } = true;
@@ -41,7 +36,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
          */
         public string GetQueryBuilderBodyBeforeBuild() => _invocationsBeforeBuild.ToString();
 
-        public SystemAPIQueryBuilderDescription(SystemDescription systemDescription, QueryCandidate queryCandidate)
+        public SystemApiQueryBuilderDescription(SystemDescription systemDescription, QueryCandidate queryCandidate)
         {
             SystemDescription = systemDescription;
 
@@ -54,15 +49,13 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
             if (systemDescription.SemanticModel.GetOperation(queryCandidate.BuildNode) is IInvocationOperation invocationOperation
                 && invocationOperation.TargetMethod.ToString() == "Unity.Entities.SystemAPIQueryBuilder.Build()")
             {
-                _queryCandidate = queryCandidate;
-
                 SystemDescription = systemDescription;
                 queryCandidate.BuildNode.GetLocation();
 
                 var containingMethod = queryCandidate.BuildNode.AncestorOfKindOrDefault<MethodDeclarationSyntax>();
                 if (containingMethod != null)
                 {
-                    var methodSymbol = (IMethodSymbol)ModelExtensions.GetDeclaredSymbol(SystemDescription.SemanticModel, containingMethod);
+                    var methodSymbol = (IMethodSymbol)SystemDescription.SemanticModel.GetDeclaredSymbol(containingMethod);
                     IsBurstEnabled = methodSymbol.HasAttribute("Unity.Burst.BurstCompileAttribute");
 
                     var noneQueryTypes = new List<Query>();
@@ -70,6 +63,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                     var allQueryTypes = new List<Query>();
                     var disabledQueryTypes = new List<Query>();
                     var absentQueryTypes = new List<Query>();
+                    var presentQueryTypes = new List<Query>();
                     var entityQueryOptions = new List<EntityQueryOptions>();
 
                     foreach (var node in queryCandidate.SystemAPIQueryBuilderNode.Ancestors().OfType<InvocationExpressionSyntax>())
@@ -86,7 +80,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.Disabled,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -99,7 +93,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.Disabled,
                                                     IsReadOnly = false
                                                 }).ToArray();
@@ -107,12 +101,37 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                         _invocationsBeforeBuild.AppendLine($".WithDisabledRW<{typeArguments.Select(t => t.TypeSymbol.ToFullName()).SeparateByCommaAndSpace()}>()");
                                         disabledQueryTypes.AddRange(typeArguments);
                                         break;
+                                    case "WithPresent":
+                                        typeArguments =
+                                            genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
+                                                new Query
+                                                {
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
+                                                    Type = QueryType.Present,
+                                                    IsReadOnly = true
+                                                }).ToArray();
+
+                                        _invocationsBeforeBuild.AppendLine($".WithPresent<{typeArguments.Select(t => t.TypeSymbol.ToFullName()).SeparateByCommaAndSpace()}>()");
+                                        presentQueryTypes.AddRange(typeArguments);
+                                        break;
+                                    case "WithPresentRW":
+                                        typeArguments =
+                                            genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
+                                                new Query
+                                                {
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
+                                                    Type = QueryType.Present,
+                                                    IsReadOnly = false
+                                                }).ToArray();
+                                        _invocationsBeforeBuild.AppendLine($".WithPresentRW<{typeArguments.Select(t => t.TypeSymbol.ToFullName()).SeparateByCommaAndSpace()}>()");
+                                        presentQueryTypes.AddRange(typeArguments);
+                                        break;
                                     case "WithAbsent":
                                         typeArguments =
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.Absent,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -125,8 +144,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.Absent,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -139,7 +157,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.All,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -152,8 +170,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.All,
                                                     IsReadOnly = false
                                                 }).ToArray();
@@ -166,8 +183,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.All,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -180,8 +196,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.All,
                                                     IsReadOnly = false
                                                 }).ToArray();
@@ -194,8 +209,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.Any,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -207,7 +221,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                         typeArguments = genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                             new Query
                                             {
-                                                TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                 Type = QueryType.Any,
                                                 IsReadOnly = true
                                             }).ToArray();
@@ -219,7 +233,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                          typeArguments = genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                             new Query
                                             {
-                                                TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                 Type = QueryType.Any,
                                                 IsReadOnly = false
                                             }).ToArray();
@@ -231,7 +245,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                         typeArguments = genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                             new Query
                                             {
-                                                TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                 Type = QueryType.Any,
                                                 IsReadOnly = false
                                             }).ToArray();
@@ -244,8 +258,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.None,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -258,8 +271,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions
-                                                        .GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.None,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -273,7 +285,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.All,
                                                     IsReadOnly = false
                                                 }).ToArray();
@@ -287,7 +299,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                             genericNameSyntax.TypeArgumentList.Arguments.Select(typeArg =>
                                                 new Query
                                                 {
-                                                    TypeSymbol = (ITypeSymbol)ModelExtensions.GetSymbolInfo(systemDescription.SemanticModel, typeArg).Symbol,
+                                                    TypeSymbol = systemDescription.SemanticModel.GetTypeInfo(typeArg).Type,
                                                     Type = QueryType.All,
                                                     IsReadOnly = true
                                                 }).ToArray();
@@ -316,12 +328,12 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
 
                                         if (entityQueryOptions.Count > 1)
                                         {
-                                            SystemAPIQueryBuilderErrors.SGQB001(SystemDescription, node.GetLocation());
+                                            SystemApiQueryBuilderErrors.SGQB001(SystemDescription, node.GetLocation());
                                             Success = false;
                                         }
                                         else
                                         {
-                                            archetype = new Archetype(allQueryTypes, anyQueryTypes, noneQueryTypes, disabledQueryTypes, absentQueryTypes, entityQueryOptions.Any() ? entityQueryOptions.SingleOrDefault() : EntityQueryOptions.Default);
+                                            archetype = new Archetype(allQueryTypes, anyQueryTypes, noneQueryTypes, disabledQueryTypes, absentQueryTypes, presentQueryTypes, entityQueryOptions.Any() ? entityQueryOptions.SingleOrDefault() : EntityQueryOptions.Default);
                                             Archetypes.Add(archetype);
                                             QueryFinalizingLocations.Add(node.GetLocation());
                                         }
@@ -334,12 +346,12 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
                                     case "Build":
                                         if (entityQueryOptions.Count > 1)
                                         {
-                                            SystemAPIQueryBuilderErrors.SGQB001(SystemDescription, node.GetLocation());
+                                            SystemApiQueryBuilderErrors.SGQB001(SystemDescription, node.GetLocation());
                                             Success = false;
                                         }
                                         else
                                         {
-                                            archetype = new Archetype(allQueryTypes, anyQueryTypes, noneQueryTypes, disabledQueryTypes, absentQueryTypes, entityQueryOptions.Any() ? entityQueryOptions.SingleOrDefault() : EntityQueryOptions.Default);
+                                            archetype = new Archetype(allQueryTypes, anyQueryTypes, noneQueryTypes, disabledQueryTypes, absentQueryTypes, presentQueryTypes, entityQueryOptions.Any() ? entityQueryOptions.SingleOrDefault() : EntityQueryOptions.Default);
                                             Archetypes.Add(archetype);
                                             QueryFinalizingLocations.Add(node.GetLocation());
                                         }
@@ -372,7 +384,7 @@ namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
             if (SourceGenHelpers.TryParseQualifiedEnumValue(argumentExpression.ToString(), out EntityQueryOptions option))
                 options |= option;
 
-            return (options, options.GetFlags().Select(flag => $"Unity.Entities.EntityQueryOptions.{flag.ToString()}").SeparateByBinaryOr());
+            return (options, options.GetAsFlagStringSeperatedByOr());
         }
     }
 }

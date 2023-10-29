@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Testing;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Unity.Entities.SourceGen.Common;
-using Unity.Entities.SourceGen.LambdaJobs;
-using Unity.Entities.SourceGen.SystemGenerator;
+using Unity.Entities.SourceGen.SystemGenerator.Common;
+using Unity.Entities.SourceGen.SystemGenerator.LambdaJobs;
 using VerifyCS =
     Unity.Entities.SourceGenerators.Test.CSharpSourceGeneratorVerifier<
         Unity.Entities.SourceGen.SystemGenerator.SystemGenerator>;
@@ -13,23 +13,24 @@ namespace Unity.Entities.SourceGenerators;
 public class LambdaJobsErrorTests
 {
     [TestMethod]
-    public async Task CapturingInvalidIdentifier()
+    public async Task DC0085_CapturingInvalidIdentifier()
     {
         const string source = @"
             using Unity.Entities;
             using Unity.Entities.Tests;
             partial class SomeSystem : SystemBase {
-                 protected override void OnUpdate()
+                protected override void OnUpdate()
                 {
                     var foo = {|#0:Foo|}();
                     Entities.ForEach((Entity e) =>
-                    {
-                        var blah = foo.bar();
-                    }).Schedule();
+                    {|#1:{
+                        var blah = foo;
+                    }|}).Schedule();
                 }
             }";
-        var expected = VerifyCS.CompilerError("CS0103").WithLocation(0);
-        await VerifyCS.VerifySourceGeneratorAsync(source, expected);
+        var diagnosticResult1 = DiagnosticResult.CompilerError("CS0103").WithLocation(0);
+        var diagnosticResult2 = DiagnosticResult.CompilerError(nameof(LambdaJobsErrors.DC0086)).WithLocation(1);
+        await VerifyCS.VerifySourceGeneratorAsync(source, diagnosticResult1, diagnosticResult2);
     }
 
     [TestMethod]

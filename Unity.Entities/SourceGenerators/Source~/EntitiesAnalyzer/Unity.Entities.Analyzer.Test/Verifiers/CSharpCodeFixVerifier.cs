@@ -11,7 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Unity.Burst;
 using Unity.Collections;
-using Unity.Entities.SourceGenerators.Test;
+using Unity.Entities.SourceGen.Common;
 
 namespace Unity.Entities.Analyzer.Test
 {
@@ -53,13 +53,14 @@ namespace Unity.Entities.Analyzer.Test
             => await VerifyCodeFixAsync(source, new[] { expected }, fixedSource);
 
         /// <inheritdoc cref="CodeFixVerifier{TAnalyzer, TCodeFix, TTest, TVerifier}.VerifyCodeFixAsync(string, DiagnosticResult[], string)"/>
-        public static async Task VerifyCodeFixAsync(string source, DiagnosticResult[] expected, string fixedSource)
+        public static async Task VerifyCodeFixAsync(string source, DiagnosticResult[] expected, string fixedSource, int numIterationsExpected = 1)
         {
             var test = new Test
             {
                 TestState = { AdditionalReferences = {typeof(EntitiesMock).Assembly, typeof(BurstMock).Assembly, typeof(CollectionsMock).Assembly}},
                 TestCode = source,
                 FixedCode = fixedSource,
+                NumberOfFixAllIterations = numIterationsExpected
             };
 
             test.ExpectedDiagnostics.AddRange(expected);

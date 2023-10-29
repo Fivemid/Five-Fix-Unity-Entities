@@ -50,6 +50,8 @@ public class AspectErrorTests
                 public readonly RefRW<Unity.Entities.Tests.EcsTestData2> Data;
                 public MyStruct CreateAspect(Entity entity, ref SystemState system) => default;
                 public void AddComponentRequirementsTo(ref UnsafeList<ComponentType> all){}
+                public void CompleteDependencyBeforeRO(ref SystemState state){}
+                public void CompleteDependencyBeforeRW(ref SystemState state){}
             }|}";
         var expected = VerifyCS.CompilerError(nameof(AspectErrors.SGA0002)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);

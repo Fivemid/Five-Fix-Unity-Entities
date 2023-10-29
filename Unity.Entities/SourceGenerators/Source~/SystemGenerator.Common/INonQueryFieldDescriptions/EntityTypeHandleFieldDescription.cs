@@ -1,14 +1,20 @@
 using System;
+using System.CodeDom.Compiler;
 
-namespace Unity.Entities.SourceGen.SystemGenerator.Common
+namespace Unity.Entities.SourceGen.SystemGenerator.Common;
+
+public readonly struct EntityTypeHandleFieldDescription : IMemberDescription, IEquatable<EntityTypeHandleFieldDescription>
 {
-    public readonly struct EntityTypeHandleFieldDescription : INonQueryFieldDescription, IEquatable<EntityTypeHandleFieldDescription>
+    public string GeneratedFieldName => "__Unity_Entities_Entity_TypeHandle";
+    public void AppendMemberDeclaration(IndentedTextWriter w, bool forcePublic = false)
     {
-        public string GeneratedFieldName => "__Unity_Entities_Entity_TypeHandle";
-        public string GetFieldDeclaration(bool forcePublic = false) =>
-            $"[global::Unity.Collections.ReadOnly] {(forcePublic ? "public" : "")} global::Unity.Entities.EntityTypeHandle {GeneratedFieldName};";
-        public string GetFieldAssignment() => $@"{GeneratedFieldName} = state.GetEntityTypeHandle();";
-        public bool Equals(EntityTypeHandleFieldDescription other) => true;
-        public override int GetHashCode() => GeneratedFieldName.GetHashCode();
+        w.Write("[global::Unity.Collections.ReadOnly] ");
+        if (forcePublic)
+            w.Write("public ");
+        w.Write($"global::Unity.Entities.EntityTypeHandle {GeneratedFieldName};");
+        w.WriteLine();
     }
+    public string GetMemberAssignment() => $@"{GeneratedFieldName} = state.GetEntityTypeHandle();";
+    public bool Equals(EntityTypeHandleFieldDescription other) => true;
+    public override int GetHashCode() => GeneratedFieldName.GetHashCode();
 }

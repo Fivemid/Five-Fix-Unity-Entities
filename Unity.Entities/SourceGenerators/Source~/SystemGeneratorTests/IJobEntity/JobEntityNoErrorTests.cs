@@ -2,7 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
 using VerifyCS =
     Unity.Entities.SourceGenerators.Test.CSharpIncrementalGeneratorVerifier<
-        Unity.Entities.SourceGen.JobEntity.JobEntityGenerator>;
+        Unity.Entities.SourceGen.JobEntityGenerator.JobEntityGenerator>;
 
 namespace Unity.Entities.SourceGenerators;
 

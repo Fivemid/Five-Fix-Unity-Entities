@@ -1,9 +1,10 @@
 ﻿using Microsoft.CodeAnalysis;
+using Unity.Entities.SourceGen.Common;
 using Unity.Entities.SourceGen.SystemGenerator.Common;
 
 namespace Unity.Entities.SourceGen.SystemGenerator.SystemAPI.QueryBuilder
 {
-   public static class SystemAPIQueryBuilderErrors
+   public static class SystemApiQueryBuilderErrors
     {
         private const string ErrorTitle = "SystemAPIQueryBuilderError";
 

@@ -1,74 +1,74 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Linq;
 
-namespace Unity.Entities.SourceGen.LambdaJobs
+namespace Unity.Entities.SourceGen.SystemGenerator.LambdaJobs;
+
+class LambdaJobsPatchableMethod
 {
-    class LambdaJobsPatchableMethod
+    public Func<IMethodSymbol, LambdaBodyRewriter, InvocationExpressionSyntax, SyntaxNode> GeneratePatchedReplacementSyntax;
+    public ComponentAccessRights AccessRights { get; private set; }
+
+    public enum AccessorDataType
     {
-        public Func<IMethodSymbol, LambdaBodyRewriter, InvocationExpressionSyntax, SyntaxNode> GeneratePatchedReplacementSyntax;
-        public ComponentAccessRights AccessRights { get; private set; }
+        ComponentLookup,
+        BufferLookup,
+        AspectLookup,
+        EntityStorageInfoLookup
+    }
 
-        public enum AccessorDataType
+    public enum ComponentAccessRights
+    {
+        ReadOnly,
+        ReadWrite,
+        GetFromFirstMethodParam
+    }
+
+    static string[] GetArgumentsInOrder(InvocationExpressionSyntax originalNode, params string[] namedParameters)
+    {
+        var arguments = originalNode.ArgumentList.Arguments;
+        if (arguments.Count > 1 && arguments.Count != namedParameters.Length)
+            throw new InvalidOperationException(
+                $"Must supply named parameters if there is more than one argument: {string.Join(", ", arguments)} {string.Join(", ", namedParameters)}.");
+
+        var orderedArguments = new string[arguments.Count];
+        var argumentName = arguments.Select(arg => arg.NameColon?.Name);
+        var argumentsAndName = arguments.Zip(argumentName, (arg, name) => (arg, name));
+
+        for (var i = 0; i < 2; i++)
         {
-            ComponentLookup,
-            BufferLookup,
-            AspectLookup,
-            EntityStorageInfoLookup
-        }
-
-        public enum ComponentAccessRights
-        {
-            ReadOnly,
-            ReadWrite,
-            GetFromFirstMethodParam
-        }
-
-        static string[] GetArgumentsInOrder(InvocationExpressionSyntax originalNode, params string[] namedParameters)
-        {
-            var arguments = originalNode.ArgumentList.Arguments;
-            if (arguments.Count > 1 && arguments.Count != namedParameters.Length)
-                throw new InvalidOperationException(
-                    $"Must supply named parameters if there is more than one argument: {string.Join(", ", arguments)} {string.Join(", ", namedParameters)}.");
-
-            var orderedArguments = new string[arguments.Count];
-            var argumentName = arguments.Select(arg => arg.NameColon?.Name);
-            var argumentsAndName = arguments.Zip(argumentName, (arg, name) => (arg, name));
-
-            for (var i = 0; i < 2; i++)
+            if (i == 0) // First pass, go through named arguments and fill them in in correct placement
             {
-                if (i == 0) // First pass, go through named arguments and fill them in in correct placement
+                foreach (var arg in argumentsAndName.Where(arg => arg.name != null))
                 {
-                    foreach (var arg in argumentsAndName.Where(arg => arg.name != null))
-                    {
-                        var foundIdx = Array.FindIndex(namedParameters, checkArg => checkArg == arg.name.ToString());
-                        if (foundIdx != -1)
-                            orderedArguments[foundIdx] = arg.arg.Expression.ToString();
-                        else
-                            throw new InvalidOperationException($"Could not find named parameters {arg.name} in list of expected named parameters.");
-                    }
-                }
-                else // Second pass, fill in the rest of the arguments in first missing spot
-                {
-                    var idx = 0;
-                    foreach (var arg in argumentsAndName.Where(arg => arg.name == null))
-                    {
-                        while (!string.IsNullOrEmpty(orderedArguments[idx]))
-                            idx++;
-                        if (idx >= orderedArguments.Length)
-                            throw new InvalidOperationException($"Could not fit named and unnamed arguments.");
-                        orderedArguments[idx] = arg.arg.Expression.ToString();
-                    }
+                    var foundIdx = Array.FindIndex(namedParameters, checkArg => checkArg == arg.name.ToString());
+                    if (foundIdx != -1)
+                        orderedArguments[foundIdx] = arg.arg.Expression.ToString();
+                    else
+                        throw new InvalidOperationException($"Could not find named parameters {arg.name} in list of expected named parameters.");
                 }
             }
-
-            return orderedArguments;
+            else // Second pass, fill in the rest of the arguments in first missing spot
+            {
+                var idx = 0;
+                foreach (var arg in argumentsAndName.Where(arg => arg.name == null))
+                {
+                    while (!string.IsNullOrEmpty(orderedArguments[idx]))
+                        idx++;
+                    if (idx >= orderedArguments.Length)
+                        throw new InvalidOperationException($"Could not fit named and unnamed arguments.");
+                    orderedArguments[idx] = arg.arg.Expression.ToString();
+                }
+            }
         }
 
-        internal static readonly Dictionary<string, LambdaJobsPatchableMethod> PatchableMethods =
+        return orderedArguments;
+    }
+
+    internal static readonly Dictionary<string, LambdaJobsPatchableMethod> PatchableMethods =
         new Dictionary<string, LambdaJobsPatchableMethod>
         {
             {
@@ -212,5 +212,4 @@ namespace Unity.Entities.SourceGen.LambdaJobs
                 }
             }
         };
-    }
 }

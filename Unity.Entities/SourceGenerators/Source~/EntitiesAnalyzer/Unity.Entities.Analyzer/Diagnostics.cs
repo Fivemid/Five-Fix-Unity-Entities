@@ -2,6 +2,11 @@ using Microsoft.CodeAnalysis;
 
 namespace Unity.Entities.Analyzer
 {
+    public static class CSharpCompilerDiagnostics
+    {
+        public const string CS1654 = "CS1654";
+    }
+
     public static class EntitiesDiagnostics
     {
         public const string ID_EA0001 = "EA0001";

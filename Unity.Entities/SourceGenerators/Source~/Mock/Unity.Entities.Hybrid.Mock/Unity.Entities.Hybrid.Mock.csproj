@@ -8,6 +8,8 @@
         <AssemblyName>Unity.Entities.Hybrid</AssemblyName>
         <RootNamespace>Unity.Entities.Hybrid</RootNamespace>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Deterministic>True</Deterministic>
+        <PlatformTarget>AnyCPU</PlatformTarget>
     </PropertyGroup>
 
     <ItemGroup>

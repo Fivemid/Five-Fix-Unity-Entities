@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -9,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis.CSharp;
+using Unity.Entities.SourceGen.Common;
 
 namespace Unity.Entities.Analyzer
 {
@@ -16,6 +18,7 @@ namespace Unity.Entities.Analyzer
     public class EntitiesCodeFixProvider : CodeFixProvider
     {
         public sealed override ImmutableArray<string> FixableDiagnosticIds => ImmutableArray.Create(
+            CSharpCompilerDiagnostics.CS1654,
             EntitiesDiagnostics.ID_EA0001,
             EntitiesDiagnostics.ID_EA0007,
             EntitiesDiagnostics.ID_EA0008,
@@ -28,23 +31,25 @@ namespace Unity.Entities.Analyzer
             foreach (var diagnostic in context.Diagnostics)
             {
                 var node = root?.FindNode(diagnostic.Location.SourceSpan);
-                if (node is LocalDeclarationStatementSyntax {Declaration:{} variableDeclaration} && diagnostic.Id == EntitiesDiagnostics.ID_EA0001) {
-                        context.RegisterCodeFix(
-                            CodeAction.Create(title: "Use non-readonly reference",
-                                createChangedDocument: c => MakeNonReadonlyReference(context.Document, variableDeclaration, c),
-                                equivalenceKey: "NonReadonlyReference"),
-                            diagnostic);
-                }
 
-                if (node is ParameterSyntax parameterSyntax && diagnostic.Id == EntitiesDiagnostics.ID_EA0009) {
-                        context.RegisterCodeFix(
-                            CodeAction.Create(title: "Use non-readonly reference",
-                                createChangedDocument: c => MakeNonReadonlyReference(context.Document, parameterSyntax, c),
-                                equivalenceKey: "NonReadonlyReferenceParameter"),
-                            diagnostic);
-                }
-
-                if (node is TypeDeclarationSyntax typeDeclarationSyntax) {
+                switch (node)
+                {
+                    case LocalDeclarationStatementSyntax {Declaration:{} variableDeclaration} when diagnostic.Id == EntitiesDiagnostics.ID_EA0001:
+                    context.RegisterCodeFix(
+                        CodeAction.Create(title: "Use non-readonly reference",
+                            createChangedDocument: c => MakeNonReadonlyReference(context.Document, variableDeclaration, c),
+                            equivalenceKey: "NonReadonlyReference"),
+                        diagnostic);
+                        break;
+                    case ParameterSyntax parameterSyntax when diagnostic.Id == EntitiesDiagnostics.ID_EA0009:
+                    context.RegisterCodeFix(
+                        CodeAction.Create(title: "Use non-readonly reference",
+                            createChangedDocument: c => MakeNonReadonlyReference(context.Document, parameterSyntax, c),
+                            equivalenceKey: "NonReadonlyReferenceParameter"),
+                        diagnostic);
+                        break;
+                    case TypeDeclarationSyntax typeDeclarationSyntax:
+                    {
                         if (diagnostic.Id == EntitiesDiagnostics.ID_EA0007 || diagnostic.Id == EntitiesDiagnostics.ID_EA0008)
                         {
                             context.RegisterCodeFix(
@@ -61,8 +66,71 @@ namespace Unity.Entities.Analyzer
                                     equivalenceKey: "AddBurstCompilerAttribute"),
                                 diagnostic);
                         }
+
+                        break;
+                    }
+                    case ElementAccessExpressionSyntax elementAccessExpression when diagnostic.Id == CSharpCompilerDiagnostics.CS1654:
+                    {
+                        context.RegisterCodeFix(
+                            CodeAction.Create(title: "Store element in a new variable",
+                                createChangedDocument: c => AssignCurrentVariableToNewVariable_AndUseNewVariableInstead(context.Document, elementAccessExpression, c),
+                                equivalenceKey: "StoreValueTypeElementInNewVariable"),
+                            diagnostic);
+                        break;
+                    }
+                }
+                }
             }
-        }
+
+        // To understand the implementation of this method, it helps to read through some sample code here:
+        // https://sharplab.io/#v2:C4LghgzsA+ACBMBGAsAKDbAzAAigJwFcBjYbAEQE8A7MAWwEsiAhAgM1YFM8AeAFQD5saAN5ps47Fmy9swABb0IAbXpVSqgCYcAHgF0xE0agknsAcw6kAvIK2swBADbAAFLwCUAbgOncl7DbYAG5gjgQcAdh2Ds5uXj7YAL5oyeioUgjYAMLYRiYZACzYALIu7kLGhgkmrAD2eBxgRHLYLi4heFEARogANMFgnRpd8OWq2FQcAO6tlDQMzGycPKrA/P1zdIws7FzcrI61YGvuSgAMurmJ7tVVlb4mAPQAVNgA6hFTYGqytdgNUzw9GAEXkEUm2lIjlUoNqIFuvgRDxMHQm02GiEiGO892RD0mUwx50uVmwiBxeLxSIe43qWk6wD+DQgtUcQQiWQAyogAGwAVgKADpqYjcZTpH8OFQIAQGtgiPUGiRsJopcBjvRalRsLVWLI5ODpo4KCrpVwQRpsNDJv1gWiOBoIL9sAQIKCDbIgUF6GBsJAWUQfRbsFNgS0wRVxSZ6Fo1PRWPQuNgAAbDZOm/WGyFWmHCsUPZ6PEXiIkXSLk4uR8Uvd6fb6kRn/aZAkGZtHZ62w+H50VR3yogkYrE9Cl9lGDNGEkbD+CjsfiVHMpzWVqDnrE8vlADUq/RIw3pMQgrOrHiPfFlYktLw9OdzNZ7Oy3P5Qsv4jfEuwUplcoVeCV6hULG6rAJq2q6m2BLGqabp4MGnYQP0YIml0tTyPalqNq67qgl6Pp+hAAZBg6IZhh+EbJh06Yxmq8aJp04wRhCUK5pWhaVouHAys4kQuKWJJkturTDPAB5ksep5zqYqQmKkiRAA==
+        static async Task<Document> AssignCurrentVariableToNewVariable_AndUseNewVariableInstead(
+            Document document, ElementAccessExpressionSyntax elementAccessExpression, CancellationToken cancellationToken)
+        {
+            var currentIdentifierName = (IdentifierNameSyntax)elementAccessExpression.Expression;
+            var currentIdentifier = currentIdentifierName.Identifier;
+            var currentIdentifierText = currentIdentifier.ValueText;
+            var currentBracketedArgumentList = elementAccessExpression.ArgumentList;
+
+            // Declare a new variable and assign the current variable to it.
+            var newIdentifier = SyntaxFactory.IdentifierName($"__new{currentIdentifierText}__").WithTriviaFrom(currentIdentifierName);
+            var variableDeclaratorSyntax =
+                SyntaxFactory.VariableDeclarator(
+                    newIdentifier.Identifier.WithTrailingTrivia(SyntaxFactory.Space),
+                    argumentList: null,
+                    initializer: SyntaxFactory.EqualsValueClause(currentIdentifierName.WithLeadingTrivia(SyntaxFactory.Space)));
+
+            // Insert the new variable declaration before the statement containing the current variable.
+            var insertNewVariableDeclarationBefore = elementAccessExpression.AncestorOfKind<StatementSyntax>();
+
+            // If the original code is: `db[0] = blah`, then the new variable declaration needs to use the trivia associated with `db` in order to preserve
+            // the correct indentation.
+            // If the original code is: `var result = (db1[0] = blah) + (db2[0] = blah);` then the new variable declaration needs to use the trivia associated with
+            // `var` in order to preserve the correct indentation.
+            // To retrieve the correct trivia, we simply need to look for the first `IdentifierNameSyntax` node in the statement containing the current variable,
+            // and use its trivia.
+            var variableDeclarationUseTriviaFrom = insertNewVariableDeclarationBefore.DescendantNodes().OfType<IdentifierNameSyntax>().First();
+            var variableDeclarationStatement =
+                SyntaxFactory.ParseStatement($"var {variableDeclaratorSyntax.ToString()};")
+                    .WithLeadingTrivia(variableDeclarationUseTriviaFrom.Identifier.LeadingTrivia)
+                    .WithTrailingTrivia(SyntaxFactory.EndOfLine("\n"));
+
+            var newElementAccessNode = SyntaxFactory.ElementAccessExpression(newIdentifier, currentBracketedArgumentList).WithTriviaFrom(currentIdentifierName);
+
+            var currentRoot = await document.GetSyntaxRootAsync(cancellationToken).ConfigureAwait(false);
+
+            // Because we are making multiple changes, and each change creates a new COPY of the document with the change applied, we need to track
+            // the original nodes we want to modify across all new copies to ensure that our changes are always correctly applied. Each time we apply a change, we
+            // must invoke `trackedRoot.GetCurrentNode(originalNodeToModify)` to identify the node in the new copy that corresponds to `originalNodeToModify`.
+            var trackedRoot = currentRoot?.TrackNodes(insertNewVariableDeclarationBefore, elementAccessExpression);
+            var trackedStatement = trackedRoot?.GetCurrentNode(insertNewVariableDeclarationBefore);
+            trackedRoot = trackedRoot.InsertNodesBefore(trackedStatement, new SyntaxNode[]{variableDeclarationStatement});
+            var trackedElementAccessNode = trackedRoot.GetCurrentNode(elementAccessExpression);
+            trackedRoot = trackedRoot.ReplaceNode(trackedElementAccessNode, newElementAccessNode.WithTrailingTrivia(SyntaxFactory.Space));
+
+            Debug.Assert(currentRoot != null, nameof(currentRoot) + " != null");
+
+            return document.WithSyntaxRoot(trackedRoot);
         }
 
         static async Task<Document> AddPartial(Document document, TypeDeclarationSyntax typeDeclarationSyntax, CancellationToken cancellationToken)

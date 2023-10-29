@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Unity.Entities.SourceGen.Common;
 using Unity.Entities.SourceGen.SystemGenerator.SystemAPI.Query;
 using Unity.Entities.SourceGen.SystemGenerator;
+using Unity.Entities.SourceGen.SystemGenerator.Common;
 using VerifyCS =
     Unity.Entities.SourceGenerators.Test.CSharpSourceGeneratorVerifier<
         Unity.Entities.SourceGen.SystemGenerator.SystemGenerator>;
@@ -18,13 +19,13 @@ public class ForEachErrorTests
         const string source = @"
             using Unity.Entities;
             using Unity.Entities.Tests;
-            {|#0:partial struct TranslationSystem : ISystem
+            partial struct TranslationSystem : ISystem
             {
                 public int Translation
                 {
                     get
                     {
-                        foreach (var translation in SystemAPI.Query<RefRW<Translation>>()){}
+                        foreach (var translation in {|#0:SystemAPI.Query<RefRW<Translation>>()|}){}
                         return 3;
                     }
                 }
@@ -34,8 +35,8 @@ public class ForEachErrorTests
                 public void OnDestroy(ref SystemState state) { }
 
                 public void OnUpdate(ref SystemState state) { }
-            }|}";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE002)).WithLocation(0);
+            }";
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE002)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -220,7 +221,7 @@ public class ForEachErrorTests
                 }
                 public void OnDestroy(ref SystemState state) { }
             }";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE003)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE003)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -236,12 +237,12 @@ public class ForEachErrorTests
                 public void OnUpdate(ref SystemState state)
                 {
                     foreach (var component in {|#0:SystemAPI.Query<RefRO<EcsTestData>>()
-                        .WithSharedComponentFilter<EcsTestData2, EcsTestData3>()
-                        .WithSharedComponentFilter<EcsTestData4>()|}) {}
+                        .WithSharedComponentFilter<EcsTestSharedCompA, EcsTestSharedCompB>(new EcsTestSharedCompA(), new EcsTestSharedCompB())
+                        .WithSharedComponentFilter<EcsTestSharedComp>(new EcsTestSharedComp(inValue: 5))|}) {}
                 }
                 public void OnDestroy(ref SystemState state) { }
             }";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE007)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE007)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -264,7 +265,7 @@ public class ForEachErrorTests
 
                 public void OnDestroy(ref SystemState state) { }
             }";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE008)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE008)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -281,7 +282,7 @@ public class ForEachErrorTests
 
                 public QueryEnumerable<RefRO<EcsTestData>> GetEntitiesWithEcsTestData() => {|#0:SystemAPI.Query<RefRO<EcsTestData>>()|};
             }";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE001)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE001)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -304,30 +305,7 @@ public class ForEachErrorTests
 
                 public void OnDestroy(ref SystemState state) { }
             }";
-        var expected = VerifyCS.CompilerInfo(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE009)).WithLocation(0);
-        await VerifyCS.VerifySourceGeneratorAsync(source, expected);
-    }
-
-    [TestMethod]
-    public async Task SGFE010_ValueTypeComponentDataInForEachIteration()
-    {
-        const string source = @"
-            using Unity.Entities;
-            using Unity.Entities.Tests;
-
-            partial struct CharacterMovementSystem : ISystem
-            {
-                public void OnCreate(ref SystemState state) { }
-
-                public void OnUpdate(ref SystemState state)
-                {
-                    foreach (var component in SystemAPI.Query<{|#0:RefRO<GenericComponentData<EcsTestData>>|}>())
-                    { }
-                }
-
-                public void OnDestroy(ref SystemState state) { }
-            }";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE010)).WithLocation(0);
+        var expected = VerifyCS.CompilerInfo(nameof(IfeCompilerMessages.SGFE009)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 
@@ -354,6 +332,66 @@ public class ForEachErrorTests
     }
 
     [TestMethod]
+    public async Task SGQC005_QueryingGenericType()
+    {
+        const string source = @"
+            using Unity.Entities;
+            using Unity.Entities.Tests;
+
+            partial class TranslationSystem<T> : SystemBase where T : struct, IComponentData
+            {
+                protected override void OnUpdate()
+                {
+                    foreach (var aspect in {|#0:SystemAPI.Query<RefRW<Translation>>().WithNone<T>()|})
+                    {
+                    }
+                }
+            }";
+        var expected = VerifyCS.CompilerError(nameof(QueryConstructionErrors.SGQC005)).WithLocation(0);
+        await VerifyCS.VerifySourceGeneratorAsync(source, expected);
+    }
+
+    [TestMethod]
+    public async Task SGFE011_QueryingGenericTypeInRef()
+    {
+        const string source = @"
+            using Unity.Entities;
+            using Unity.Entities.Tests;
+
+            partial class TranslationSystem<T> : SystemBase where T : struct, IComponentData
+            {
+                protected override void OnUpdate()
+                {
+                    foreach (var component in SystemAPI.Query<{|#0:RefRO<T>|}>())
+                    {
+                    }
+                }
+            }";
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE011)).WithLocation(0);
+        await VerifyCS.VerifySourceGeneratorAsync(source, expected);
+    }
+
+    [TestMethod]
+    public async Task SGFE010_QueryingTypeWithGenericTypeArgumentInRef()
+    {
+        const string source = @"
+            using Unity.Entities;
+            using Unity.Entities.Tests;
+
+            partial class TranslationSystem<T> : SystemBase where T : unmanaged, IComponentData
+            {
+                protected override void OnUpdate()
+                {
+                    foreach (var component in SystemAPI.Query<{|#0:RefRO<GenericComponentData<T>>|}>())
+                    {
+                    }
+                }
+            }";
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE010)).WithLocation(0);
+        await VerifyCS.VerifySourceGeneratorAsync(source, expected);
+    }
+
+    [TestMethod]
     public async Task SGFE012_QueryingEnableableType_SpecifyTypeMustBeAbsent()
     {
         const string source = @"
@@ -369,7 +407,7 @@ public class ForEachErrorTests
                     }
                 }
             }";
-        var expected = VerifyCS.CompilerError(nameof(IdiomaticCSharpForEachCompilerMessages.SGFE012)).WithLocation(0);
+        var expected = VerifyCS.CompilerError(nameof(IfeCompilerMessages.SGFE012)).WithLocation(0);
         await VerifyCS.VerifySourceGeneratorAsync(source, expected);
     }
 }
