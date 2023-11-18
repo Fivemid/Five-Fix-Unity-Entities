@@ -359,7 +359,11 @@ namespace Unity.Entities
             {
                 var entityComponentStore = m_Manager.GetCheckedEntityDataAccess()->EntityComponentStore;
 
-                if (entity.Index < 0 || entity.Index > entityComponentStore->EntitiesCapacity)
+                if (entity.Index < 0
+#if ENTITY_STORE_V1
+                    || entity.Index > entityComponentStore->EntitiesCapacity
+#endif
+                    )
                 {
                     return "Entity.Invalid";
                 }
@@ -586,6 +590,10 @@ namespace Unity.Entities
             /// Several checks to ensure that the <see cref="EntityComponentStore"/> and <see cref="ManagedComponentStore"/>
             /// have all references that are expected at this time as well as the expected number of entities.
             /// </summary>
+            /// <remarks>
+            /// These checks can not safely run while any jobs are running against this EntityManager's World. The caller
+            /// should consider calling CompleteAllTrackedJobs() first to enforce this constraint.
+            /// </remarks>
             [Conditional("ENABLE_UNITY_COLLECTIONS_CHECKS"), Conditional("UNITY_DOTS_DEBUG")]
             public void CheckInternalConsistency()
             {

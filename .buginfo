@@ -1,4 +1,5 @@
 system: jira
 server: jira.unity3d.com
-project: ECSB
 issuetype: Bug
+package: Entity Component System (ECS)
+project: ECSB

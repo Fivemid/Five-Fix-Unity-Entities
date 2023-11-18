@@ -89,7 +89,10 @@ namespace Unity.Entities.Editor
         static bool EntityExistsAndIsValid(World world, Entity entity)
         {
             return world is { IsCreated: true }
-                   && entity.Index >= 0 && (uint)entity.Index < (uint)world.EntityManager.EntityCapacity
+                   && entity.Index >= 0
+#if ENTITY_STORE_V1
+                   && (uint)entity.Index < (uint)world.EntityManager.EntityCapacity
+#endif
                    && world.EntityManager.Exists(entity);
         }
 
@@ -204,7 +207,7 @@ namespace Unity.Entities.Editor
                 return;
 
             World = world;
-            Container = new EntityContainer(world, Entity);
+            Container = new EntityContainer(world.EntityManager, Entity);
         }
 
         /// <summary>Returns a hash code.</summary>
@@ -219,8 +222,8 @@ namespace Unity.Entities.Editor
             const uint WorldNumberBitMask = (1 << 4) - 1;
 
             uint entityIndexU32 = (uint)entityIndex;
-
             uint worldNumberU32 = World is not { IsCreated: true } ? 0 : (uint)World.SequenceNumber;
+
             uint entityIndexBits = entityIndexU32 & EntityBitMask;
             uint worldNumberBits = (worldNumberU32 & WorldNumberBitMask) << 28;
 

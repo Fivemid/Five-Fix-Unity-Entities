@@ -53,14 +53,14 @@ namespace Unity.Entities.Tests
         [Test]
         public void EmptyOK()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.Playback(m_Manager);
         }
 
         [Test]
         public void Playback_WithSinglePlaybackPolicy_ThrowsOnMultiplePlaybacks()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.SinglePlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.SinglePlayback);
             // First playback should succeed
             Assert.DoesNotThrow(() => {cmds.Playback(m_Manager); });
             // Subsequent playback attempts fail
@@ -72,7 +72,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void Playback_WithMultiPlaybackPolicy_DoesNotThrow()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             // First playback should succeed
             Assert.DoesNotThrow(() => {cmds.Playback(m_Manager); });
             // Subsequent playback attempts should not fail
@@ -301,7 +301,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void EntityCommandBufferConcurrent_PlaybackDuringWrite_UsesCustomOwnerTypeName()
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             const int kCreateCount = 10000;
             var job = new TestParallelJob
             {
@@ -314,7 +314,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void SingleWriterEnforced()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var job = new TestJob {Buffer = cmds};
 
             var e = cmds.CreateEntity();
@@ -361,7 +361,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void ModifiesWhileJobRunningThrows()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var job = new TestJob {Buffer = cmds};
 
             var handle = job.Schedule();
@@ -374,7 +374,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void PlaybackWhileJobRunningThrows()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var job = new TestJob {Buffer = cmds};
 
             var handle = job.Schedule();
@@ -399,7 +399,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void PlaybackWithExclusiveEntityTransactionInJob()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var job = new TestJob {Buffer = cmds};
 
             var e = cmds.CreateEntity();
@@ -451,7 +451,7 @@ namespace Unity.Entities.Tests
         [TestRequiresCollectionChecks("Requires Job Safety System")]
         public void EntityCommandBufferConcurrent_PlaybackDuringWrite_ThrowsInvalidOperation()
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             const int kCreateCount = 10000;
             var job = new TestParallelJob
             {
@@ -478,7 +478,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void CreateEntity()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             cmds.AddComponent(e, new EcsTestData { value = 12 });
             cmds.Playback(m_Manager);
@@ -504,7 +504,7 @@ namespace Unity.Entities.Tests
         {
             var a = m_Manager.CreateArchetype(typeof(EcsTestData));
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity(a);
             cmds.SetComponent(e, new EcsTestData { value = 12 });
             cmds.Playback(m_Manager);
@@ -525,11 +525,8 @@ namespace Unity.Entities.Tests
         public void CreateEntityWithArchetype_InvalidThrows()
         {
             var a = new EntityArchetype();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
-            using (cmds)
-            {
-                Assert.Throws<ArgumentException>(() => cmds.CreateEntity(a));
-            }
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            Assert.Throws<ArgumentException>(() => cmds.CreateEntity(a));
         }
 
         [Test]
@@ -537,18 +534,15 @@ namespace Unity.Entities.Tests
         public void CreateEntityWithArchetype_Parallel_InvalidThrows()
         {
             var a = new EntityArchetype();
-            var ecb = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var ecb = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var cmds = ecb.AsParallelWriter();
-            using (ecb)
-            {
-                Assert.Throws<ArgumentException>(() => cmds.CreateEntity(0, a));
-            }
+            Assert.Throws<ArgumentException>(() => cmds.CreateEntity(0, a));
         }
 
         [Test]
         public void CreateTwoComponents()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             cmds.AddComponent(e, new EcsTestData { value = 12 });
             cmds.AddComponent(e, new EcsTestData2 { value0 = 1, value1 = 2 });
@@ -635,12 +629,13 @@ namespace Unity.Entities.Tests
                 }
                 group.Dispose();
             }
+            cmds.Dispose();
         }
 
         [Test]
         public void AddSharedComponent()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             cmds.AddSharedComponent(entity, new EcsTestSharedComp(10));
@@ -658,7 +653,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddSharedComponentDefault()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
 
             var e = cmds.CreateEntity();
             cmds.AddSharedComponent(e, new EcsTestSharedComp(10));
@@ -702,7 +697,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             cmds.AddComponent(e, new EcsTestData(10));
             cmds.AddComponent<EcsTestTag>(e);
@@ -720,7 +715,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var component = new EcsTestData(10);
             var typeIndex = TypeManager.GetTypeIndex<EcsTestData>();
@@ -738,7 +733,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var typeIndex = TypeManager.GetTypeIndex<EcsTestData>();
             var typeSize = TypeManager.GetTypeInfo(typeIndex).TypeSize;
@@ -764,7 +759,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var typeIndex = TypeManager.GetTypeIndex<EcsTestData>();
             var typeSize = TypeManager.GetTypeInfo(typeIndex).TypeSize;
@@ -791,7 +786,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var component = new EcsTestData(10);
             var typeIndex = TypeManager.GetTypeIndex<EcsTestData>();
@@ -818,7 +813,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var component = new EcsTestData(10);
             var typeIndex = TypeManager.GetTypeIndex<EcsTestData>();
@@ -845,7 +840,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var component = new EcsTestData(10);
             var typeIndex = TypeManager.GetTypeIndex<EcsTestData>();
@@ -863,7 +858,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.AddComponent(e, new ComponentTypeSet(typeof(EcsTestTag), typeof(EcsTestData3)));
             cmds.Playback(m_Manager);
 
@@ -879,7 +874,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponent<EcsTestData3>(e);
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.AddComponent(e, new ComponentTypeSet(typeof(EcsTestTag), typeof(EcsTestData3)));
             cmds.Playback(m_Manager);
 
@@ -896,7 +891,7 @@ namespace Unity.Entities.Tests
             m_Manager.AddComponent<EcsTestData3>(e);
             m_Manager.AddComponent<EcsTestTag>(e);
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.AddComponent(e, new ComponentTypeSet(typeof(EcsTestTag), typeof(EcsTestData3)));
             cmds.Playback(m_Manager);
 
@@ -923,7 +918,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddComponents_Parallel()
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             const int kCreateCount = 10000;  // the bigger, the more likely to catch race conditions
             var job = new TestParallelJob_AddComponents
             {
@@ -943,7 +938,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponent(e, new ComponentTypeSet(typeof(EcsTestTag), typeof(EcsTestData3)));
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.RemoveComponent(e, new ComponentTypeSet(typeof(EcsTestTag), typeof(EcsTestData3)));
             cmds.Playback(m_Manager);
 
@@ -955,9 +950,9 @@ namespace Unity.Entities.Tests
             // same thing again, but reverse order of types in ComponentTypes
             m_Manager.AddComponent(e, new ComponentTypeSet(typeof(EcsTestTag), typeof(EcsTestData3)));
 
-            cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
-            cmds.RemoveComponent(e, new ComponentTypeSet(typeof(EcsTestData3), typeof(EcsTestTag)));
-            cmds.Playback(m_Manager);
+            using var cmds2 = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            cmds2.RemoveComponent(e, new ComponentTypeSet(typeof(EcsTestData3), typeof(EcsTestTag)));
+            cmds2.Playback(m_Manager);
 
             Assert.IsTrue(m_Manager.HasComponent<Simulate>(e));
             Assert.IsFalse(m_Manager.HasComponent<EcsTestTag>(e));
@@ -968,7 +963,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddSharedComponentWithDefaultValue()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var e = m_Manager.CreateEntity();
             cmds.AddSharedComponent(e, new EcsTestSharedComp(0));
@@ -985,11 +980,15 @@ namespace Unity.Entities.Tests
         [Test]
         public void SetSharedComponent()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
-            var e = cmds.CreateEntity();
+            var e = m_Manager.CreateEntity();
             cmds.AddSharedComponent(e, new EcsTestSharedComp(10));
             cmds.SetSharedComponent(e, new EcsTestSharedComp(33));
+            var e2 = cmds.CreateEntity();
+            cmds.AddComponent<EcsTestTag>(e2);
+            cmds.AddSharedComponent(e, default(EcsTestSharedCompEntity));
+            cmds.SetSharedComponent(e, new EcsTestSharedCompEntity(e2));
 
             cmds.Playback(m_Manager);
 
@@ -997,12 +996,15 @@ namespace Unity.Entities.Tests
 
             Assert.AreEqual(2, sharedCompList.Length);
             Assert.AreEqual(33, sharedCompList[1].value);
+
+            var actualValue = m_Manager.GetSharedComponent<EcsTestSharedCompEntity>(e);
+            Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(actualValue.value));
         }
 
         [Test]
         public void SetSharedComponentDefault()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
 
             var e = cmds.CreateEntity();
             cmds.AddSharedComponent(e, new EcsTestSharedComp(10));
@@ -1031,7 +1033,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void SetSharedComponentNonDefault()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var index = TypeManager.GetTypeIndex<EcsTestSharedComp>();
 
             var e = cmds.CreateEntity();
@@ -1060,7 +1062,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void RemoveSharedComponent()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             var sharedComponent = new EcsTestSharedComp(10);
@@ -1155,7 +1157,7 @@ namespace Unity.Entities.Tests
         {
             var name = new FixedString64Bytes("Test");
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = cmds.CreateEntity();
             cmds.AddComponent(e0,typeof(EcsTestData));
@@ -1176,7 +1178,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddAndSetComponent_ComponentDoesNotExist_Succeeds()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             cmds.AddComponent(entity, ComponentType.ReadWrite<EcsTestData>());
@@ -1191,7 +1193,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddAndSetComponent_ComponentExists_NewValueWins()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             cmds.AddComponent(entity, new EcsTestData(17));
@@ -1208,7 +1210,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddComponentData_ComponentExists_NewValueWins()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             cmds.AddComponent(entity, new EcsTestData(17));
@@ -1222,7 +1224,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddSharedComponent_ComponentDoesNotExist_Succeeds()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             cmds.AddSharedComponent(entity, new EcsTestSharedComp(42));
@@ -1235,7 +1237,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddSharedComponent_ComponentExists_NewValueWins()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var entity = m_Manager.CreateEntity();
             cmds.AddSharedComponent(entity, new EcsTestSharedComp(17));
@@ -1244,6 +1246,22 @@ namespace Unity.Entities.Tests
             Assert.DoesNotThrow(() => { cmds.Playback(m_Manager); });
 
             Assert.AreEqual(42, m_Manager.GetSharedComponent<EcsTestSharedComp>(entity).value);
+        }
+
+        [Test]
+        public void AddSharedComponent_WithEntityFixup_Works()
+        {
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+
+            var entity = m_Manager.CreateEntity();
+            var e2 = cmds.CreateEntity();
+            cmds.AddComponent<EcsTestTag>(e2);
+            cmds.AddSharedComponent(entity, new EcsTestSharedCompEntity(e2));
+
+            Assert.DoesNotThrow(() => { cmds.Playback(m_Manager); });
+
+            var actualValue = m_Manager.GetSharedComponent<EcsTestSharedCompEntity>(entity);
+            Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(actualValue.value));
         }
 
         [Test]
@@ -2231,7 +2249,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void JobWithSharedComponentData()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var job = new TestJobWithManagedSharedData { Buffer = cmds, Blah = new EcsTestSharedComp2(12) };
 
             job.Schedule().Complete();
@@ -2271,7 +2289,7 @@ namespace Unity.Entities.Tests
                 m_Manager.AddComponentData(entities[i], new EcsTestData { value = i });
             }
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             new TestBurstCommandBufferJob
             {
@@ -2300,7 +2318,7 @@ namespace Unity.Entities.Tests
                 m_Manager.AddComponentData(entities[i], new EcsCleanup1 { Value = i });
             }
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             new TestBurstCommandBufferJob
             {
@@ -2330,7 +2348,7 @@ namespace Unity.Entities.Tests
             }
 
             {
-                var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+                using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
                 new TestBurstCommandBufferJob
                 {
                     e0 = entities[0],
@@ -2342,7 +2360,7 @@ namespace Unity.Entities.Tests
             }
 
             {
-                var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+                using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
                 for (var i = 0; i < entities.Length; i++)
                 {
                     cmds.RemoveComponent<EcsCleanup1>(entities[i]);
@@ -2364,7 +2382,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponentData(e, new EcsTestData(5));
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.Instantiate(e);
             cmds.Instantiate(e);
             cmds.Playback(m_Manager);
@@ -2379,7 +2397,7 @@ namespace Unity.Entities.Tests
             m_Manager.AddComponentData(e, new EcsTestData(5));
 
             using var outEntities = CollectionHelper.CreateNativeArray<Entity>(2, World.UpdateAllocator.ToAllocator);
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.Instantiate(e, outEntities);
             cmds.Playback(m_Manager);
 
@@ -2392,7 +2410,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponentData(e, new EcsTestData(5));
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var e1 = cmds.Instantiate(e);
             cmds.SetComponent(e1, new EcsTestData(11));
@@ -2413,7 +2431,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponentData(e, new EcsTestData(5));
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             cmds.DestroyEntity(e);
             cmds.DestroyEntity(e);
@@ -2426,7 +2444,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddSharedComponent_WhenComponentHasEntityField_DoesNotRemap()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var es = m_Manager.CreateEntity();
 
@@ -2441,7 +2459,7 @@ namespace Unity.Entities.Tests
         [TestRequiresDotsDebugOrCollectionChecks("Test requires entity command buffer safety checks")]
         public void DestroyInvalidEntity()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var entityBuffer = CollectionHelper.CreateNativeArray<Entity, RewindableAllocator>(1, ref World.UpdateAllocator);
             var e = cmds.CreateEntity();
             cmds.AddComponent(e, new EcsTestData { value = 12 });
@@ -2450,7 +2468,7 @@ namespace Unity.Entities.Tests
 
             var savedEntity = entityBuffer[0];
 
-            var cmds2 = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds2 = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds2.DestroyEntity(savedEntity);
 
             // savedEntity is invalid, so playing back this ECB should throw an exception
@@ -2467,6 +2485,7 @@ namespace Unity.Entities.Tests
             cmds.CreateEntity();
             cmds.ShouldPlayback = false;
             cmds.Playback(m_Manager);
+            cmds.Dispose();
 
             var allEntities = m_Manager.GetAllEntities();
             int count = allEntities.Length;
@@ -2490,7 +2509,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void ConcurrentRecord()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.CreateEntity();
             new TestConcurrentJob { Buffer = cmds.AsParallelWriter() }.Schedule().Complete();
             cmds.Playback(m_Manager);
@@ -2518,7 +2537,7 @@ namespace Unity.Entities.Tests
         public void ConcurrentRecordParallelFor()
         {
             const int kCreateCount = 10000;
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.CreateEntity();
             new TestConcurrentParallelForJob { Buffer = cmds.AsParallelWriter() }.Schedule(kCreateCount, 64).Complete();
             cmds.Playback(m_Manager);
@@ -2567,7 +2586,7 @@ namespace Unity.Entities.Tests
             Entity master = m_Manager.CreateEntity();
             m_Manager.AddComponentData(master, new EcsTestData2 {value0 = 42, value1 = 17});
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             new TestConcurrentInstantiateJob { Buffer = cmds.AsParallelWriter(), MasterCopy = master }.Schedule(kInstantiateCount, 64).Complete();
             cmds.Playback(m_Manager);
 
@@ -2602,7 +2621,7 @@ namespace Unity.Entities.Tests
         [TestRequiresCollectionChecks]
         public void PlaybackInvalidatesBuffers()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
@@ -2622,18 +2641,17 @@ namespace Unity.Entities.Tests
 
             // Using a rewindable allocator here should normally bypass most of ECB.Dispose(), but the presence of
             // DynamicBuffer commands requires the full dispose code to run anyway.
-            var ecb = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var ecb = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = ecb.CreateEntity();
             var db = ecb.AddBuffer<EcsIntElement>(e);
             var elements = CollectionHelper.CreateNativeArray<EcsIntElement>(db.Capacity * 2, Allocator.Temp);
             db.AddRange(elements);
-            ecb.Dispose();
         }
 
         [Test(Description = "Once a buffer command is played back, it has no side effects on the ECB.")]
         public void BufferChanged_BetweenPlaybacks_HasNoEffectOnECB()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
@@ -2660,7 +2678,7 @@ namespace Unity.Entities.Tests
         [TestRequiresCollectionChecks]
         public void ArrayAliasesOfPendingBuffersAreInvalidateOnResize()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = cmds.CreateEntity();
             var buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
@@ -2690,7 +2708,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddBufferNoOverflow()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
@@ -2701,7 +2719,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddBufferNoOverflow_MultiplePlaybacks()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
@@ -2714,7 +2732,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddBufferOverflow()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
@@ -2725,7 +2743,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddBufferOverflow_MultiplePlaybacks()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
@@ -2738,7 +2756,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddBufferOverflow_MultiplePlaybacks_SingleManager()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
@@ -2765,7 +2783,7 @@ namespace Unity.Entities.Tests
         public void AddBufferExplicit()
         {
             var e = m_Manager.CreateEntity();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
             cmds.Playback(m_Manager);
@@ -2777,7 +2795,7 @@ namespace Unity.Entities.Tests
         public void SetBufferExplicit()
         {
             var e = m_Manager.CreateEntity(typeof(EcsIntElement));
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             DynamicBuffer<EcsIntElement> buffer = cmds.SetBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
             cmds.Playback(m_Manager);
@@ -2788,7 +2806,7 @@ namespace Unity.Entities.Tests
         public void AppendToBufferExplicit()
         {
             var e = m_Manager.CreateEntity();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
             cmds.AppendToBuffer(e, new EcsIntElement {Value = 4});
@@ -2801,7 +2819,7 @@ namespace Unity.Entities.Tests
         public void AppendToBufferExplicit_LargerThanInternalCapacity()
         {
             var e = m_Manager.CreateEntity();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8 });
             cmds.AppendToBuffer(e, new EcsIntElement {Value = 9});
@@ -2814,7 +2832,7 @@ namespace Unity.Entities.Tests
         public void AppendToBufferExplicit_WithinExternalCapacity()
         {
             var e = m_Manager.CreateEntity();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 });
             cmds.AppendToBuffer(e, new EcsIntElement {Value = 10});
@@ -2827,7 +2845,7 @@ namespace Unity.Entities.Tests
         public void AppendToBufferExplicit_LargerThanExternalCapacity()
         {
             var e = m_Manager.CreateEntity();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 });
             cmds.AppendToBuffer(e, new EcsIntElement {Value = 17});
@@ -2841,7 +2859,7 @@ namespace Unity.Entities.Tests
         public void AppendToBuffer_BufferDoesNotExist_Fails()
         {
             var e = m_Manager.CreateEntity();
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.AppendToBuffer(e, new EcsIntElement {Value = 9});
             Assert.Throws<InvalidOperationException>(() => cmds.Playback(m_Manager));
         }
@@ -2852,7 +2870,7 @@ namespace Unity.Entities.Tests
             int kNumOfBuffers = 12; // Must be > 2
             int kNumOfDeferredEntities = 12;
 
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity[] e = new Entity[kNumOfBuffers];
 
@@ -2907,7 +2925,7 @@ namespace Unity.Entities.Tests
             var entities = new NativeArray<Entity>(100, Allocator.Persistent);
             m_Manager.CreateEntity(archetype, entities);
 
-            EntityCommandBuffer cb = new EntityCommandBuffer(Allocator.Persistent);
+            using EntityCommandBuffer cb = new EntityCommandBuffer(Allocator.Persistent);
             var handle = new AppendToBufferJob()
             {
                 CommandBuffer = cb.AsParallelWriter(),
@@ -2922,7 +2940,6 @@ namespace Unity.Entities.Tests
                 Assert.AreEqual(100, buffer.Length);
             }
 
-            cb.Dispose();
             entities.Dispose();
         }
 
@@ -2930,7 +2947,7 @@ namespace Unity.Entities.Tests
         public void AddBuffer_BufferDoesNotExist_Succeeds()
         {
             var e = m_Manager.CreateEntity(typeof(EcsIntElement));
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             DynamicBuffer<EcsIntElement> buffer = cmds.AddBuffer<EcsIntElement>(e);
             buffer.CopyFrom(new EcsIntElement[] { 1, 2, 3 });
             cmds.Playback(m_Manager);
@@ -2941,7 +2958,7 @@ namespace Unity.Entities.Tests
         public void AddBuffer_BufferExists_NewValueWins()
         {
             var e = m_Manager.CreateEntity(typeof(EcsIntElement));
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             DynamicBuffer<EcsIntElement> bufferOld = cmds.AddBuffer<EcsIntElement>(e);
             DynamicBuffer<EcsIntElement> bufferNew = cmds.AddBuffer<EcsIntElement>(e);
             bufferNew.CopyFrom(new EcsIntElement[] {1, 2, 3});
@@ -3397,7 +3414,7 @@ namespace Unity.Entities.Tests
         public void DeterminismTest()
         {
             const int kRepeat = 10000;
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = cmds.CreateEntity(); // implicitly, sortIndex=Int32.MaxValue on the main thread
             cmds.AddComponent(e, new EcsTestData { value = kRepeat });
             new DeterminismTestJob { Cmds = cmds.AsParallelWriter() }.Schedule(kRepeat, 64).Complete();
@@ -3418,11 +3435,10 @@ namespace Unity.Entities.Tests
         [TestRequiresDotsDebugOrCollectionChecks("Test requires entity command buffer safety checks")]
         public void NoTempAllocatorInConcurrent()
         {
-            var cmds = new EntityCommandBuffer(Allocator.Temp);
+            using var cmds = new EntityCommandBuffer(Allocator.Temp);
 #pragma warning disable 0219 // assigned but its value is never used
             Assert.Throws<InvalidOperationException>(() => { EntityCommandBuffer.ParallelWriter c = cmds.AsParallelWriter(); });
 #pragma warning restore 0219
-            cmds.Dispose();
         }
 
         private void VerifySingleBuffer(int length)
@@ -3503,7 +3519,7 @@ namespace Unity.Entities.Tests
                 testArray[i] = i;
             }
 
-            EntityCommandBuffer cb = new EntityCommandBuffer(Allocator.Persistent);
+            using EntityCommandBuffer cb = new EntityCommandBuffer(Allocator.Persistent);
             var handle = new BufferCopyFromNativeArrayJob()
             {
                 CommandBuffer = cb.AsParallelWriter(),
@@ -3524,7 +3540,6 @@ namespace Unity.Entities.Tests
                 }
             }
 
-            cb.Dispose();
             entities.Dispose();
         }
 
@@ -3543,7 +3558,7 @@ namespace Unity.Entities.Tests
 
             var testSlice = new NativeSlice<EcsIntElement>(testArray);
 
-            EntityCommandBuffer cb = new EntityCommandBuffer(Allocator.Persistent);
+            using EntityCommandBuffer cb = new EntityCommandBuffer(Allocator.Persistent);
             var handle = new BufferCopyFromNativeSliceJob()
             {
                 CommandBuffer = cb.AsParallelWriter(),
@@ -3563,7 +3578,6 @@ namespace Unity.Entities.Tests
                 }
             }
 
-            cb.Dispose();
             entities.Dispose();
         }
 
@@ -3711,7 +3725,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddComponent_WhenDataContainsDeferredEntity_ThrowsOnMultiplePlaybacks()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = cmds.CreateEntity();
             cmds.AddComponent(e0, new EcsTestDataEntity(1, e0));
@@ -3724,7 +3738,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddComponents_WhenDataContainsDeferredEntity_ThrowsOnMultiplePlaybacks()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = cmds.CreateEntity();
             cmds.AddComponent(e0, new ComponentTypeSet(typeof(EcsTestData), typeof(EcsTestData2)));
@@ -3737,7 +3751,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddComponent_WhenDataContainsDeferredEntity_DeferredEntityIsResolved()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = cmds.CreateEntity();
             cmds.AddComponent(e0, new EcsTestDataEntity(1, e0));
@@ -3754,7 +3768,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddComponents_WhenDataContainsDeferredEntity_DeferredEntityIsResolved()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             Entity e0 = cmds.CreateEntity();
             cmds.AddComponent(e0, new ComponentTypeSet(typeof(EcsTestDataEntity)));
             cmds.SetComponent(e0, new EcsTestDataEntity(1, e0));
@@ -3770,7 +3784,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void EntityCommands_WithManyDeferredEntities_PerformAsExpected()
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(Allocator.Persistent);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(Allocator.Persistent);
 
 #if UNITY_DOTSPLAYER_IL2CPP && !DEVELOP    // IL2CPP is a little slow in debug; reduce the number of tests in DEBUG (but not DEVELOP).
             const int step = 100;
@@ -3788,7 +3802,6 @@ namespace Unity.Entities.Tests
                 cmds.DestroyEntity(e);
             }
             cmds.Playback(m_Manager);
-            cmds.Dispose();
 
             var allEntities = m_Manager.GetAllEntities();
             Assert.AreEqual(0, allEntities.Length);
@@ -3798,7 +3811,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void InstantiateEntity_BatchMode_DisabledIfEntityDirty()
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(Allocator.Persistent);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(Allocator.Persistent);
             Entity esrc = m_Manager.CreateEntity();
 
             Entity edst0 = cmds.Instantiate(esrc);
@@ -3807,7 +3820,6 @@ namespace Unity.Entities.Tests
             cmds.AddComponent(esrc, new EcsTestDataEntity(33, edst1));
 
             cmds.Playback(m_Manager);
-            cmds.Dispose();
 
             var realDst1 = m_Manager.GetComponentData<EcsTestDataEntity>(esrc).value1;
             Assert.AreEqual(12, m_Manager.GetComponentData<EcsTestData2>(realDst1).value1);
@@ -3817,7 +3829,7 @@ namespace Unity.Entities.Tests
         [TestRequiresDotsDebugOrCollectionChecks("Test requires entity command buffer safety checks")]
         public void UninitializedEntityCommandBufferThrows()
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer();
+            using EntityCommandBuffer cmds = new EntityCommandBuffer();
             var exception = Assert.Throws<NullReferenceException>(() => cmds.CreateEntity());
             Assert.AreEqual("The EntityCommandBuffer has not been initialized! The EntityCommandBuffer needs to be passed an Allocator when created!", exception.Message);
         }
@@ -3834,7 +3846,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddOrSetBufferWithEntity_NeedsFixup_ThrowsOnMultiplePlayback([Values(true, false)] bool setBuffer)
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = m_Manager.CreateEntity();
             Entity e1 = m_Manager.CreateEntity();
@@ -3865,7 +3877,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void AddOrSetBufferWithEntity_NeedsFixup_ContainsRealizedEntity([Values(true, false)] bool setBuffer)
         {
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = m_Manager.CreateEntity();
             Entity e1 = m_Manager.CreateEntity();
@@ -3909,7 +3921,7 @@ namespace Unity.Entities.Tests
             int kNumOfBuffers = 12; // Must be > 2
             int kNumOfDeferredEntities = 12;
 
-            EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity[] e = new Entity[kNumOfBuffers];
 
@@ -3971,13 +3983,63 @@ namespace Unity.Entities.Tests
                 cmds.Playback(m_Manager);
             }
 
-            var query = m_Manager.CreateEntityQuery(ComponentType.ReadWrite<EcsTestData>(), ComponentType.ReadWrite<EcsTestData2>());
+            var query = new EntityQueryBuilder(Allocator.Temp).WithAll<EcsTestData,EcsTestData2>()
+                .Build(m_Manager);
             using (var results = query.ToEntityArray(World.UpdateAllocator.ToAllocator))
             {
                 Assert.AreEqual(5, results.Length);
                 for (int i = 0; i < results.Length; i++)
                 {
                     Assert.AreEqual(42, m_Manager.GetComponentData<EcsTestData2>(results[i]).value0);
+                }
+            }
+
+            array.Dispose();
+        }
+
+        [Test]
+        public void AddComponentForLinkedEntityGroup_WithEntityFixup_Works()
+        {
+            var rootEntity = m_Manager.CreateEntity(typeof(Prefab), typeof(LinkedEntityGroup));
+            var array = CollectionHelper.CreateNativeArray<Entity>(10, World.UpdateAllocator.ToAllocator);
+
+            for (var i = 0; i < 10; i++)
+            {
+                var child = m_Manager.CreateEntity();
+                if (i % 2 == 0)
+                    m_Manager.AddComponent<EcsTestData>(child);
+                array[i] = child;
+            }
+
+            var linkedBuffer = m_Manager.AddBuffer<LinkedEntityGroup>(rootEntity);
+            linkedBuffer.Add(rootEntity);
+            for (var i = 0; i < 10; i++)
+            {
+                linkedBuffer.Add(new LinkedEntityGroup {Value = array[i]});
+            }
+
+            var instance = m_Manager.Instantiate(rootEntity);
+
+            var mask = m_Manager.CreateEntityQuery(ComponentType.ReadWrite<EcsTestData>()).GetEntityQueryMask();
+
+            using (EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator))
+            {
+                var e2 = cmds.CreateEntity();
+                cmds.AddComponent<EcsTestTag>(e2);
+                cmds.AddComponentForLinkedEntityGroup(instance, mask, new EcsTestDataEntity(17,e2));
+                cmds.Playback(m_Manager);
+            }
+
+            var query = new EntityQueryBuilder(Allocator.Temp).WithAll<EcsTestData,EcsTestDataEntity>()
+                .Build(m_Manager);
+            using (var results = query.ToEntityArray(World.UpdateAllocator.ToAllocator))
+            {
+                Assert.AreEqual(5, results.Length);
+                for (int i = 0; i < results.Length; i++)
+                {
+                    var value = m_Manager.GetComponentData<EcsTestDataEntity>(results[i]);
+                    Assert.AreEqual(17, value.value0);
+                    Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(value.value1));
                 }
             }
 
@@ -4045,7 +4107,8 @@ namespace Unity.Entities.Tests
             }
 
             var instance = m_Manager.Instantiate(rootEntity);
-            var mask = m_Manager.CreateEntityQuery(ComponentType.ReadWrite<EcsTestData>()).GetEntityQueryMask();
+            var query = new EntityQueryBuilder(Allocator.Temp).WithAll<EcsTestData>().Build(m_Manager);
+            var mask = query.GetEntityQueryMask();
 
             using (EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator))
             {
@@ -4053,13 +4116,60 @@ namespace Unity.Entities.Tests
                 cmds.Playback(m_Manager);
             }
 
-            var query = m_Manager.CreateEntityQuery(ComponentType.ReadWrite<EcsTestData>());
             using (var results = query.ToEntityArray(World.UpdateAllocator.ToAllocator))
             {
                 Assert.AreEqual(5, results.Length);
                 for (int i = 0; i < results.Length; i++)
                 {
                     Assert.AreEqual(42, m_Manager.GetComponentData<EcsTestData>(results[i]).value);
+                }
+            }
+
+            array.Dispose();
+        }
+
+        [Test]
+        public void SetComponentForLinkedEntityGroup_WithEntityFixup_Works()
+        {
+            var rootEntity = m_Manager.CreateEntity(typeof(Prefab), typeof(LinkedEntityGroup));
+            var array = CollectionHelper.CreateNativeArray<Entity>(10, World.UpdateAllocator.ToAllocator);
+
+            for (var i = 0; i < 10; i++)
+            {
+                var child = m_Manager.CreateEntity(typeof(Prefab));
+                if (i % 2 == 0)
+                    m_Manager.AddComponent<EcsTestDataEntity>(child);
+                array[i] = child;
+            }
+
+            var linkedBuffer = m_Manager.AddBuffer<LinkedEntityGroup>(rootEntity);
+            linkedBuffer.Add(rootEntity);
+            for (var i = 0; i < 10; i++)
+            {
+                linkedBuffer.Add(new LinkedEntityGroup {Value = array[i]});
+            }
+
+            var instance = m_Manager.Instantiate(rootEntity);
+            var query = new EntityQueryBuilder(Allocator.Temp).WithAll<EcsTestDataEntity>()
+                .Build(m_Manager);
+            var mask = query.GetEntityQueryMask();
+
+            using (EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator))
+            {
+                var e2 = cmds.CreateEntity();
+                cmds.AddComponent<EcsTestTag>(e2);
+                cmds.SetComponentForLinkedEntityGroup(instance, mask, new EcsTestDataEntity(42,e2));
+                cmds.Playback(m_Manager);
+            }
+
+            using (var results = query.ToEntityArray(World.UpdateAllocator.ToAllocator))
+            {
+                Assert.AreEqual(5, results.Length);
+                for (int i = 0; i < results.Length; i++)
+                {
+                    var value = m_Manager.GetComponentData<EcsTestDataEntity>(results[i]);
+                    Assert.AreEqual(42, value.value0);
+                    Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(value.value1));
                 }
             }
 
@@ -4095,13 +4205,59 @@ namespace Unity.Entities.Tests
                 cmds.Playback(m_Manager);
             }
 
-            var query = m_Manager.CreateEntityQuery(ComponentType.ReadWrite<EcsTestData>());
+            var query = new EntityQueryBuilder(Allocator.Temp).WithAll<EcsTestData>().Build(m_Manager);
             using (var results = query.ToEntityArray(World.UpdateAllocator.ToAllocator))
             {
                 Assert.AreEqual(5, results.Length);
                 for (int i = 0; i < results.Length; i++)
                 {
                     Assert.AreEqual(42, m_Manager.GetComponentData<EcsTestData>(results[i]).value);
+                }
+            }
+
+            array.Dispose();
+        }
+
+        [Test]
+        public void ReplaceComponentForLinkedEntityGroup_WithEntityFixup_Works()
+        {
+            var rootEntity = m_Manager.CreateEntity(typeof(Prefab), typeof(LinkedEntityGroup));
+            var array = CollectionHelper.CreateNativeArray<Entity>(10, World.UpdateAllocator.ToAllocator);
+
+            for (var i = 0; i < 10; i++)
+            {
+                var child = m_Manager.CreateEntity(typeof(Prefab));
+                if (i % 2 == 0)
+                    m_Manager.AddComponent<EcsTestDataEntity>(child);
+                array[i] = child;
+            }
+
+            var linkedBuffer = m_Manager.AddBuffer<LinkedEntityGroup>(rootEntity);
+            linkedBuffer.Add(rootEntity);
+            for (var i = 0; i < 10; i++)
+            {
+                linkedBuffer.Add(new LinkedEntityGroup {Value = array[i]});
+            }
+
+            var instance = m_Manager.Instantiate(rootEntity);
+
+            using (EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator))
+            {
+                var e2 = cmds.CreateEntity();
+                cmds.AddComponent<EcsTestTag>(e2);
+                cmds.ReplaceComponentForLinkedEntityGroup(instance, new EcsTestDataEntity(42,e2));
+                cmds.Playback(m_Manager);
+            }
+
+            var query = new EntityQueryBuilder(Allocator.Temp).WithAll<EcsTestDataEntity>().Build(m_Manager);
+            using (var results = query.ToEntityArray(World.UpdateAllocator.ToAllocator))
+            {
+                Assert.AreEqual(5, results.Length);
+                for (int i = 0; i < results.Length; i++)
+                {
+                    var value = m_Manager.GetComponentData<EcsTestDataEntity>(results[i]);
+                    Assert.AreEqual(42, value.value0);
+                    Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(value.value1));
                 }
             }
 
@@ -4276,11 +4432,10 @@ namespace Unity.Entities.Tests
         }
 
         [Test]
-        public void CommandsForLinkedEntityGroup_ComponentWithEntityReference_Throws()
+        public void CommandsForLinkedEntityGroup_ComponentWithEntityReference_Works()
         {
             var rootEntity = m_Manager.CreateEntity(typeof(Prefab), typeof(LinkedEntityGroup));
             var array = CollectionHelper.CreateNativeArray<Entity>(10, World.UpdateAllocator.ToAllocator);
-
             for (var i = 0; i < 10; i++)
             {
                 var child = m_Manager.CreateEntity();
@@ -4297,16 +4452,25 @@ namespace Unity.Entities.Tests
 
             var mask = m_Manager.CreateEntityQuery(ComponentType.ReadWrite<EcsTestData>()).GetEntityQueryMask();
 
-            using (EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator))
-            {
-                var defferedEntity = cmds.CreateEntity();
+            using EntityCommandBuffer cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            var deferredEntity = cmds.CreateEntity();
+            cmds.AddComponentForLinkedEntityGroup(rootEntity, mask, new EcsTestDataEntity{value0 = 17, value1 = deferredEntity});
+            cmds.SetComponentForLinkedEntityGroup(rootEntity, mask, new EcsTestDataEntity{value0 = 42, value1 = deferredEntity});
+            cmds.ReplaceComponentForLinkedEntityGroup(rootEntity, new EcsTestDataEntity{value0 = 23, value1 = deferredEntity});
+            cmds.Playback(m_Manager);
 
-                var addEx = Assert.Throws<ArgumentException>(() => cmds.AddComponentForLinkedEntityGroup(rootEntity, mask, new EcsTestDataEntity{value0 = 42, value1 = defferedEntity}));
-                Assert.IsTrue(addEx.Message.Contains("command contains a reference to a temporary Entity"));
-                var setEx = Assert.Throws<ArgumentException>(() => cmds.SetComponentForLinkedEntityGroup(rootEntity, mask, new EcsTestDataEntity{value0 = 42, value1 = defferedEntity}));
-                Assert.IsTrue(setEx.Message.Contains("command contains a reference to a temporary Entity"));
-                var replaceEx = Assert.Throws<ArgumentException>(() => cmds.ReplaceComponentForLinkedEntityGroup(rootEntity, new EcsTestDataEntity{value0 = 42, value1 = defferedEntity}));
-                Assert.IsTrue(replaceEx.Message.Contains("command contains a reference to a temporary Entity"));
+            for (int i = 0; i < array.Length; ++i)
+            {
+                if (m_Manager.HasComponent<EcsTestData>(array[i]))
+                {
+                    var testData = m_Manager.GetComponentData<EcsTestDataEntity>(array[i]);
+                    Assert.AreEqual(23, testData.value0);
+                    Assert.IsTrue(m_Manager.Exists(testData.value1));
+                }
+                else
+                {
+                    Assert.IsFalse(m_Manager.HasComponent<EcsTestDataEntity>(array[i]));
+                }
             }
 
             array.Dispose();
@@ -4528,7 +4692,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void CreateEntity_ManagedComponents()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             cmds.AddComponent(e, new EcsTestManagedComponent { value = "SomeString" });
             cmds.Playback(m_Manager);
@@ -4555,7 +4719,7 @@ namespace Unity.Entities.Tests
         {
             var a = m_Manager.CreateArchetype(typeof(EcsTestManagedComponent));
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var e = cmds.CreateEntity(a);
             cmds.SetComponent(e, new EcsTestManagedComponent { value = "SomeString" });
             cmds.Playback(m_Manager);
@@ -4570,7 +4734,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void CreateTwoComponents_ManagedComponents()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator, PlaybackPolicy.MultiPlayback);
             var e = cmds.CreateEntity();
             cmds.AddComponent(e, new EcsTestManagedComponent { value = "SomeString" });
             cmds.AddComponent(e, new EcsTestManagedComponent2 { value = "SomeString", value2 = "SomeOtherString" });
@@ -4608,7 +4772,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             cmds.AddComponent(e, new EcsTestManagedComponent() { value = "SomeString" });
             cmds.AddComponent<EcsTestTag>(e);
@@ -4626,7 +4790,7 @@ namespace Unity.Entities.Tests
         {
             var e = m_Manager.CreateEntity();
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.AddComponent(e, new ComponentTypeSet(typeof(EcsTestManagedComponent), typeof(EcsTestTag), typeof(EcsTestManagedComponent3)));
             cmds.SetComponent(e, new EcsTestManagedComponent() { value = "SomeString" });
             cmds.Playback(m_Manager);
@@ -4795,7 +4959,7 @@ namespace Unity.Entities.Tests
             }
 
             var entityQuery = m_Manager.CreateEntityQuery(typeof(EcsTestManagedComponent));
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.RemoveComponent(entityQuery, typeof(EcsTestManagedComponent2), queryCaptureMode);
 
             // modifying the entity in between recording and playback should be OK
@@ -4968,7 +5132,7 @@ namespace Unity.Entities.Tests
             }
 
             var entityQuery = m_Manager.CreateEntityQuery(typeof(EcsTestManagedComponent));
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.RemoveComponent(entityQuery, new ComponentTypeSet(typeof(EcsTestManagedComponent2)),
                 queryCaptureMode);
 
@@ -5001,7 +5165,7 @@ namespace Unity.Entities.Tests
             var component = new EcsTestManagedComponent() { value = "SomeString" };
             m_Manager.AddComponentData(e, component);
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.Instantiate(e);
             cmds.Instantiate(e);
             cmds.Playback(m_Manager);
@@ -5015,7 +5179,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponentData(e, new EcsTestManagedComponent() { value = "SomeString" });
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             var e1 = cmds.Instantiate(e);
             cmds.SetComponent(e1, new EcsTestManagedComponent() { value = "SomeOtherString" });
@@ -5036,7 +5200,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity();
             m_Manager.AddComponentData(e, new EcsTestManagedComponent());
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             cmds.DestroyEntity(e);
             cmds.DestroyEntity(e);
@@ -5050,7 +5214,7 @@ namespace Unity.Entities.Tests
         [TestRequiresDotsDebugOrCollectionChecks("Test requires entity command buffer safety checks")]
         public void DestroyInvalidEntity_ManagedComponents()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var entityBuffer = CollectionHelper.CreateNativeArray<Entity, RewindableAllocator>(1, ref World.UpdateAllocator);
             var e = cmds.CreateEntity();
             cmds.AddComponent(e, new EcsTestManagedComponent { value = "SomeString" });
@@ -5059,7 +5223,7 @@ namespace Unity.Entities.Tests
 
             var savedEntity = entityBuffer[0];
 
-            var cmds2 = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds2 = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds2.DestroyEntity(savedEntity);
 
             // savedEntity is invalid, so playing back this ECB should throw an exception
@@ -5072,7 +5236,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void PlaybackWithExclusiveEntityTransactionInJob_ManagedComponents()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             var job = new TestJob {Buffer = cmds};
 
             var e = cmds.CreateEntity();
@@ -5110,7 +5274,7 @@ namespace Unity.Entities.Tests
 #endif
         public void AddManagedComponent_WithEntityPatch()
         {
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
 
             Entity e0 = cmds.CreateEntity();
             cmds.AddComponent(e0, new EcsTestManagedDataEntity {value1 = e0});
@@ -5160,7 +5324,7 @@ namespace Unity.Entities.Tests
             var e = m_Manager.CreateEntity(archetype);
             var query = m_Manager.CreateEntityQuery(ComponentType.ReadOnly<EcsTestData>());
 
-            var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            using var cmds = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
             cmds.Playback(m_Manager);
 
             Assert.Throws<InvalidOperationException>(() => cmds.CreateEntity());
@@ -5359,6 +5523,25 @@ namespace Unity.Entities.Tests
             }
         }
 
+        [BurstCompile(CompileSynchronously = true)]
+        struct AddComponentWithValue_EntityArray_WithEntityFixup_Job : IJob
+        {
+            public EntityCommandBuffer.ParallelWriter Ecb;
+            public NativeArray<Entity> TestEntities;
+            public NativeArray<Entity> DeferredEntities;
+            public Entity Prefab;
+            public int Value0;
+            public void Execute()
+            {
+                var e2 = Ecb.CreateEntity(0);
+                Ecb.AddComponent<EcsTestTag>(0, e2);
+                var value = new EcsTestDataEntity(Value0, e2);
+                Ecb.AddComponent(0, TestEntities, value);
+                Ecb.Instantiate(0, Prefab, DeferredEntities);
+                Ecb.AddComponent(0, DeferredEntities, value);
+            }
+        }
+
         [Test]
         public void AddComponentWithValue_TargetIsEntityArray_Works()
         {
@@ -5394,6 +5577,54 @@ namespace Unity.Entities.Tests
             Assert.AreEqual(deferredEntities.Length, finalEntities.Length);
             for (int i = 0; i < finalEntities.Length; ++i)
                 Assert.AreEqual(value, m_Manager.GetComponentData<EcsTestData2>(finalEntities[i]));
+        }
+
+        [Test]
+        public void AddComponentWithValue_TargetIsEntityArray_WithEntityFixup_Works()
+        {
+            const int TEST_ENTITY_COUNT = 10;
+            var archetype = m_Manager.CreateArchetype(typeof(EcsTestData));
+            var prefab = m_Manager.CreateEntity(typeof(EcsTestData3), typeof(Prefab));
+            using var ecb = new EntityCommandBuffer(World.UpdateAllocator.ToAllocator);
+            var e2 = ecb.CreateEntity();
+            ecb.AddComponent<EcsTestTag>(e2);
+            var value = new EcsTestDataEntity(42,e2);
+            using var testEntities = m_Manager.CreateEntity(archetype, 2*TEST_ENTITY_COUNT, World.UpdateAllocator.ToAllocator);
+            using var controlEntities = m_Manager.CreateEntity(archetype, 2*TEST_ENTITY_COUNT, World.UpdateAllocator.ToAllocator);
+            using var deferredEntities = CollectionHelper.CreateNativeArray<Entity>(2*TEST_ENTITY_COUNT, World.UpdateAllocator.ToAllocator);
+            // Test main thread writer
+            ecb.AddComponent(testEntities.GetSubArray(0, TEST_ENTITY_COUNT), value);
+            ecb.Instantiate(prefab, deferredEntities.GetSubArray(0, TEST_ENTITY_COUNT));
+            ecb.AddComponent(deferredEntities.GetSubArray(0, TEST_ENTITY_COUNT), value);
+            // Test ParallelWriter
+            new AddComponentWithValue_EntityArray_WithEntityFixup_Job
+            {
+                Ecb = ecb.AsParallelWriter(),
+                TestEntities = testEntities.GetSubArray(TEST_ENTITY_COUNT, TEST_ENTITY_COUNT),
+                DeferredEntities = deferredEntities.GetSubArray(TEST_ENTITY_COUNT, TEST_ENTITY_COUNT),
+                Prefab = prefab,
+                Value0 = 42,
+            }.Run();
+
+            ecb.Playback(m_Manager);
+            for (int i = 0; i < testEntities.Length; ++i)
+            {
+                var actualValue = m_Manager.GetComponentData<EcsTestDataEntity>(testEntities[i]);
+                Assert.AreEqual(value.value0, actualValue.value0);
+                Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(actualValue.value1));
+            }
+
+            for (int i = 0; i < controlEntities.Length; ++i)
+                Assert.IsFalse(m_Manager.HasComponent<EcsTestDataEntity>(controlEntities[i]));
+            using var query = m_Manager.CreateEntityQuery(typeof(EcsTestData3), typeof(EcsTestDataEntity));
+            using var finalEntities = query.ToEntityArray(World.UpdateAllocator.ToAllocator);
+            Assert.AreEqual(deferredEntities.Length, finalEntities.Length);
+            for (int i = 0; i < finalEntities.Length; ++i)
+            {
+                var actualValue = m_Manager.GetComponentData<EcsTestDataEntity>(finalEntities[i]);
+                Assert.AreEqual(42, actualValue.value0);
+                Assert.IsTrue(m_Manager.HasComponent<EcsTestTag>(actualValue.value1));
+            }
         }
 
         [BurstCompile(CompileSynchronously = true)]
@@ -5703,7 +5934,6 @@ namespace Unity.Entities.Tests
             }
         }
 
-        [Ignore("DOTS-6905 Needs re-evaluated after we solve the NullReferenceException issues")]
         [Test]
         public void ECBWithinBurstedSystem_Works()
         {
@@ -5748,7 +5978,6 @@ namespace Unity.Entities.Tests
         }
 
 #if !UNITY_DISABLE_MANAGED_COMPONENTS
-        [Ignore("DOTS-6905 Needs re-evaluated after we solve the NullReferenceException issues")]
         [Test]
         public void ECBWithinBurstedSystem_InstantiatePrefabWithManaged_Works()
         {
@@ -6251,8 +6480,11 @@ namespace Unity.Entities.Tests
             }
 
             Assert.AreEqual(10, m_Manager.GetComponentData<EcsTestDataEntity>(entity).value0);
+
+#if ENTITY_STORE_V1
             Assert.AreEqual(1, m_Manager.GetComponentData<EcsTestDataEntity>(entity).value1.Index);
             Assert.AreEqual(1, m_Manager.GetComponentData<EcsTestDataEntity>(entity).value1.Version);
+#endif
 
             EntityCommandBuffer.PLAYBACK_WITH_TRACE = false;
         }
@@ -6311,8 +6543,11 @@ namespace Unity.Entities.Tests
             }
 
             Assert.AreEqual(10, m_Manager.GetBuffer<EcsComplexEntityRefElement>(entity)[0].Dummy);
+
+#if ENTITY_STORE_V1
             Assert.AreEqual(1, m_Manager.GetBuffer<EcsComplexEntityRefElement>(entity)[0].Entity.Index);
             Assert.AreEqual(1, m_Manager.GetBuffer<EcsComplexEntityRefElement>(entity)[0].Entity.Version);
+#endif
 
             EntityCommandBuffer.PLAYBACK_WITH_TRACE = false;
         }
@@ -6342,8 +6577,11 @@ namespace Unity.Entities.Tests
             }
 
             Assert.AreEqual(10, m_Manager.GetBuffer<EcsComplexEntityRefElement>(entity)[0].Dummy);
+
+#if ENTITY_STORE_V1
             Assert.AreEqual(1, m_Manager.GetBuffer<EcsComplexEntityRefElement>(entity)[0].Entity.Index);
             Assert.AreEqual(1, m_Manager.GetBuffer<EcsComplexEntityRefElement>(entity)[0].Entity.Version);
+#endif
 
             EntityCommandBuffer.PLAYBACK_WITH_TRACE = false;
         }

@@ -58,7 +58,7 @@ namespace Unity.Scenes.Editor
 
         internal static SceneSectionData[] BakeAndWriteEntityScene(Scene scene, BakingSettings settings, List<ReferencedUnityObjects> sectionRefObjs, WriteEntitySceneSettings writeEntitySettings)
         {
-            var world = new World("EditorScenesBakingWorld");
+            using var world = new World("EditorScenesBakingWorld");
 
             bool disposeBlobAssetCache = false;
             if (!settings.BlobAssetStore.IsCreated)
@@ -85,8 +85,6 @@ namespace Unity.Scenes.Editor
 
             if (disposeBlobAssetCache)
                 settings.BlobAssetStore.Dispose();
-
-            world.Dispose();
 
             return sections;
         }
@@ -301,66 +299,26 @@ namespace Unity.Scenes.Editor
 
             var weakAssetRefs = new NativeParallelHashSet<UntypedWeakReferenceId>(16, Allocator.Persistent);
 
+            // It is important to remove the bounds entities before generating the remap for the external references.
+            // With entity store V2, since the bounds will be removed before the entities are moved,
+            // their entity indices will likely be reused in the section world. This causes those
+            // external entity remapping and actual entity remapping to conflict each other.
+            // It doesn't affect entity store V1, except that removing the bounds before the move prevents invalid
+            // external entities to be stored in the public references dynamic buffer (as nulls).
+            var mainSectionBounds = GetBoundsAndRemove(entityManager, sectionBoundsQuery);
+
             {
-                var section = new SceneSection {SceneGUID = sceneGUID, Section = 0};
+                var section = new SceneSection { SceneGUID = sceneGUID, Section = 0 };
 
                 sectionQuery.SetSharedComponentFilterManaged(section);
                 sectionBoundsQuery.SetSharedComponentFilterManaged(section);
 
-                var bounds = GetBoundsAndRemove(entityManager, sectionBoundsQuery);
-
                 entitiesInMainSection = sectionQuery.ToEntityArray(Allocator.TempJob);
-
-                // Each section will be serialized in its own world, entities that don't have a section are part of the main scene.
-
-                // Public references array, only on the main section.
-                var refInfoEntity = entityManager.CreateEntity();
-                entityManager.AddBuffer<PublicEntityRef>(refInfoEntity);
-                entityManager.AddSharedComponentManaged(refInfoEntity, section);
-                var publicRefs = entityManager.GetBuffer<PublicEntityRef>(refInfoEntity);
-
-                //@TODO do we need to keep this index? doesn't carry any additional info
-                for (int i = 0; i < entitiesInMainSection.Length; ++i)
-                {
-                    PublicEntityRef.Add(ref publicRefs,
-                        new PublicEntityRef {entityIndex = i, targetEntity = entitiesInMainSection[i]});
-                }
-
-                UnityEngine.Debug.Assert(publicRefs.Length == entitiesInMainSection.Length);
-
-                // Save main section
-                var sectionWorld = new World("SectionWorld");
-                var sectionManager = sectionWorld.EntityManager;
-
-                var entityRemapping = entityManager.CreateEntityRemapArray(Allocator.TempJob);
-                sectionManager.MoveEntitiesFrom(entityManager, sectionQuery, entityRemapping);
-                writeEntitySceneSettings.PrefabRoot = EntityRemapUtility.RemapEntity(ref entityRemapping, prefabRoot);
-
-                // The section component is only there to break the conversion world into different sections
-                // We don't want to store that on the disk
-                //@TODO: Component should be removed but currently leads to corrupt data file. Figure out why.
-                //sectionManager.RemoveComponent(sectionManager.UniversalQuery, typeof(SceneSection));
-
-                var writeResult = WriteEntitySceneSection(sectionManager, sceneGUID, "0",
-                    importContext, writeEntitySceneSettings, out var objectRefCount, out var objRefs, weakAssetRefs);
-
-                AddToListOrDestroy(sectionRefObjs, objRefs);
-                sceneSectionBlobHeaders.Add(writeResult.Header);
-
-                sceneSectionDataList.Add(new SceneSectionData
-                {
-                    FileSize = writeResult.CompressedSize,
-                    SceneGUID = sceneGUID,
-                    ObjectReferenceCount = objectRefCount,
-                    SubSectionIndex = 0,
-                    BoundingVolume = bounds,
-                    Codec = writeEntitySceneSettings.Codec,
-                    DecompressedFileSize = writeResult.DecompressedSize
-                });
-
-                entityRemapping.Dispose();
-                sectionWorld.Dispose();
             }
+
+            // These are placeholders for section 0 that will be replaced after the other sections have been saved.
+            sceneSectionDataList.Add(default);
+            sceneSectionBlobHeaders.Add(default);
 
             {
                 // Index 0 is the default value of the shared component, not an actual section
@@ -381,25 +339,65 @@ namespace Unity.Scenes.Editor
                     {
                         var entityRemapping = entityManager.CreateEntityRemapArray(Allocator.TempJob);
 
+#if ENTITY_STORE_V1
                         // Entities will be remapped to a contiguous range in the section world, but they will
                         // also come with an unpredictable amount of meta entities. We have the guarantee that
                         // the entities in the main section won't be moved over, so there's a free range of that
                         // size at the end of the remapping table. So we use that range for external references.
                         var externEntityIndexStart = entityRemapping.Length - entitiesInMainSection.Length;
+#endif
 
-                        var sectionWorld = new World("SectionWorld");
+                        using var sectionWorld = new World("SectionWorld");
                         var sectionManager = sectionWorld.EntityManager;
 
                         // Insert mapping for external references, conversion world entity to virtual index in section
                         for (int i = 0; i < entitiesInMainSection.Length; ++i)
                         {
-                            EntityRemapUtility.AddEntityRemapping(ref entityRemapping, entitiesInMainSection[i],
-                                new Entity {Index = i + externEntityIndexStart, Version = 1});
+                            var src = entitiesInMainSection[i];
+#if !ENTITY_STORE_V1
+                            // With entity store V2 no remapping should occur on the external references.
+                            // To prevent them from being reset to null (they're not part of the set being moved),
+                            // we force them to map onto themselves.
+                            var dst = src;
+#else
+                            var dst = new Entity { Index = i + externEntityIndexStart, Version = 1 };
+#endif
+                            EntityRemapUtility.AddEntityRemapping(ref entityRemapping, src, dst);
                         }
 
                         sectionManager.MoveEntitiesFrom(entityManager, sectionQuery, entityRemapping);
                         writeEntitySceneSettings.PrefabRoot = EntityRemapUtility.RemapEntity(ref entityRemapping, prefabRoot);
 
+#if !ENTITY_STORE_V1
+                        // We have to figure out the right remapping range for serializing external references.
+                        // Knowing that actual entities in the section will be serialized sequentially
+                        // as {0,1,2,3,...,N-1} it's only a matter of counting how many actual entities
+                        // are in the section to infer that the external remapping range starts at N.
+
+                        var externEntityIndexStart = 0;
+
+                        unsafe
+                        {
+                            var entityDataAccess = sectionManager.GetCheckedEntityDataAccess();
+                            var archetypes = entityDataAccess->EntityComponentStore->m_Archetypes;
+                            for (int ai = 0, ac = archetypes.Length; ai < ac; ai++)
+                            {
+                                var chunks = archetypes[ai]->Chunks;
+                                for (int ci = 0, cc = chunks.Count; ci < cc; ci++)
+                                {
+                                    var chunk = chunks[ci];
+                                    externEntityIndexStart += chunk.Count;
+                                }
+                            }
+                        }
+
+                        // The remap array might not be large enough this time, because the new entities allocated
+                        // in the section world can have larger indices than what the main world used.
+
+                        entityRemapping.Dispose();
+                        entityRemapping = sectionWorld.EntityManager.CreateEntityRemapArray(Allocator.TempJob);
+
+#else
                         // Now that all the required entities have been moved over, we can get rid of the gap between
                         // real entities and external references. This allows remapping during load to deal with a
                         // smaller remap table, containing only useful entries.
@@ -414,6 +412,7 @@ namespace Unity.Scenes.Editor
 
                         var oldExternEntityIndexStart = externEntityIndexStart;
                         externEntityIndexStart = highestEntityIndexInUse + 1;
+#endif
 
                         // When writing the scene, references to missing entities are set to Entity.Null by default
                         // (but only if they have been used, otherwise they remain untouched)
@@ -421,7 +420,11 @@ namespace Unity.Scenes.Editor
                         // And at the same time, we put them back at the end of the effective range of real entities.
                         for (int i = 0; i < entitiesInMainSection.Length; ++i)
                         {
+#if !ENTITY_STORE_V1
+                            var src = entitiesInMainSection[i];
+#else
                             var src = new Entity {Index = i + oldExternEntityIndexStart, Version = 1};
+#endif
                             var dst = new Entity {Index = i + externEntityIndexStart, Version = 1};
                             EntityRemapUtility.AddEntityRemapping(ref entityRemapping, src, dst);
                         }
@@ -446,15 +449,69 @@ namespace Unity.Scenes.Editor
                             SubSectionIndex = subSection.Section,
                             BoundingVolume = bounds,
                             Codec = writeEntitySceneSettings.Codec,
-                            DecompressedFileSize = writeResult.DecompressedSize
+                            DecompressedFileSize = writeResult.DecompressedSize,
+                            ExternalEntitiesRefRange = entitiesInMainSection.Length,
                         });
 
                         entityRemapping.Dispose();
-                        sectionWorld.Dispose();
                     }
 
                     entitiesInSection.Dispose();
                 }
+            }
+
+            {
+                var section = new SceneSection {SceneGUID = sceneGUID, Section = 0};
+
+                sectionQuery.SetSharedComponentFilterManaged(section);
+
+                // Each section will be serialized in its own world, entities that don't have a section are part of the main scene.
+
+                // Public references array, only on the main section.
+                var refInfoEntity = entityManager.CreateEntity();
+                entityManager.AddBuffer<PublicEntityRef>(refInfoEntity);
+                entityManager.AddSharedComponentManaged(refInfoEntity, section);
+                var publicRefs = entityManager.GetBuffer<PublicEntityRef>(refInfoEntity);
+
+                for (int i = 0; i < entitiesInMainSection.Length; ++i)
+                {
+                    PublicEntityRef.Add(ref publicRefs,
+                        new PublicEntityRef {entityIndex = i, targetEntity = entitiesInMainSection[i]});
+                }
+
+                UnityEngine.Debug.Assert(publicRefs.Length == entitiesInMainSection.Length);
+
+                // Save main section
+                using var sectionWorld = new World("SectionWorld");
+                var sectionManager = sectionWorld.EntityManager;
+
+                var entityRemapping = entityManager.CreateEntityRemapArray(Allocator.TempJob);
+                sectionManager.MoveEntitiesFrom(entityManager, sectionQuery, entityRemapping);
+                writeEntitySceneSettings.PrefabRoot = EntityRemapUtility.RemapEntity(ref entityRemapping, prefabRoot);
+
+                // The section component is only there to break the conversion world into different sections
+                // We don't want to store that on the disk
+                //@TODO: Component should be removed but currently leads to corrupt data file. Figure out why.
+                //sectionManager.RemoveComponent(sectionManager.UniversalQuery, typeof(SceneSection));
+
+                var writeResult = WriteEntitySceneSection(sectionManager, sceneGUID, "0",
+                    importContext, writeEntitySceneSettings, out var objectRefCount, out var objRefs, weakAssetRefs);
+
+                AddToListOrDestroy(sectionRefObjs, objRefs);
+                sceneSectionBlobHeaders[0] = writeResult.Header;
+
+                sceneSectionDataList[0] = new SceneSectionData
+                {
+                    FileSize = writeResult.CompressedSize,
+                    SceneGUID = sceneGUID,
+                    ObjectReferenceCount = objectRefCount,
+                    SubSectionIndex = 0,
+                    BoundingVolume = mainSectionBounds,
+                    Codec = writeEntitySceneSettings.Codec,
+                    DecompressedFileSize = writeResult.DecompressedSize
+                };
+
+                entityRemapping.Dispose();
             }
 
             // Save the new header
@@ -623,16 +680,23 @@ namespace Unity.Scenes.Editor
             int decompressedSize;
             int compressedSize;
             using (var writer = new StreamBinaryWriter(entitiesBinaryPath))
+            using (var unityObjectRefs = new UnityObjectRefMap(Allocator.Temp))
             using (var entitiesWriter = new MemoryBinaryWriter())
             {
                 var entityRemapInfosCreated = entityRemapInfos.IsCreated;
-                if(!entityRemapInfosCreated)
+                if (!entityRemapInfosCreated)
+                {
+#if !ENTITY_STORE_V1
+                    entityRemapInfos = new NativeArray<EntityRemapUtility.EntityRemapInfo>(scene.HighestEntityIndex() + 1, Allocator.Temp);
+#else
                     entityRemapInfos = new NativeArray<EntityRemapUtility.EntityRemapInfo>(scene.EntityCapacity, Allocator.Temp);
+#endif
+                }
 
-                blobHeader = SerializeUtility.SerializeWorldInternal(scene, entitiesWriter, out var referencedObjects,
+                blobHeader = SerializeUtility.SerializeWorldInternal(scene, entitiesWriter, unityObjectRefs,
                     entityRemapInfos, weakAssetRefs, serializeSetting, buildBlobHeader);
 
-                SerializeUtilityHybrid.SerializeObjectReferences((UnityEngine.Object[])referencedObjects, out objRefs);
+                SerializeUtilityHybrid.SerializeObjectReferences(unityObjectRefs.ToObjectArray(), out objRefs);
 
                 if (!entityRemapInfosCreated)
                     entityRemapInfos.Dispose();

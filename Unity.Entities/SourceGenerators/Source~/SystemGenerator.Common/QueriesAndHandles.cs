@@ -38,9 +38,9 @@ public readonly struct QueriesAndHandles
 
     // We cannot call `GetOrCreateTypeHandleField(ITypeSymbol typeSymbol, bool isReadOnly)` when creating type handle
     // fields for source-generated types, because there aren't any type symbols available yet.
-    public string GetOrCreateSourceGeneratedTypeHandleField(string containerTypeFullName)
+    public string GetOrCreateSourceGeneratedIfeTypeHandleField(string containerTypeFullName)
     {
-        var description = new ContainerTypeHandleFieldDescription(containerTypeFullName);
+        var description = new IfeTypeHandleFieldDescription(containerTypeFullName);
         TypeHandleStructNestedFields.Add(description);
 
         return description.GeneratedFieldName;
@@ -62,9 +62,9 @@ public readonly struct QueriesAndHandles
         return entityTypeHandleFieldDescription.GeneratedFieldName;
     }
 
-    public string GetOrCreateTypeHandleField(ITypeSymbol typeSymbol, bool isReadOnly)
+    public string GetOrCreateTypeHandleField(ITypeSymbol typeSymbol, bool isReadOnly, TypeHandleFieldDescription.TypeHandleSource forcedTypeHandleSource = TypeHandleFieldDescription.TypeHandleSource.None)
     {
-        var typeHandleFieldDescription = new TypeHandleFieldDescription(typeSymbol, isReadOnly);
+        var typeHandleFieldDescription = new TypeHandleFieldDescription(typeSymbol, isReadOnly, forcedTypeHandleSource);
         TypeHandleStructNestedFields.Add(typeHandleFieldDescription);
 
         return typeHandleFieldDescription.GeneratedFieldName;

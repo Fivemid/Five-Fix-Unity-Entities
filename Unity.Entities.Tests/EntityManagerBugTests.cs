@@ -5,13 +5,8 @@ using System.Collections.Generic;
 
 namespace Unity.Entities.Tests
 {
+#if ENTITY_STORE_V1
     public struct Issue149Data : IComponentData
-    {
-        public int a;
-        public int b;
-    }
-
-    public struct Issue476Data : IComponentData
     {
         public int a;
         public int b;
@@ -129,6 +124,13 @@ namespace Unity.Entities.Tests
             }
         }
     }
+#endif
+
+    public struct Issue476Data : IComponentData
+    {
+        public int a;
+        public int b;
+    }
 
     class Bug476 : ECSTestsFixture
     {
@@ -147,7 +149,7 @@ namespace Unity.Entities.Tests
         [Test]
         public void Test1()
         {
-            World w = new World("TestWorld");
+            using World w = new World("TestWorld");
             World.DefaultGameObjectInjectionWorld = w;
             EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
             List<Entity> remember = new List<Entity>();
@@ -167,8 +169,6 @@ namespace Unity.Entities.Tests
             {
                 em.DestroyEntity(e);
             }
-
-            w.Dispose();
         }
 
         [Test]
