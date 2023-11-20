@@ -1184,7 +1184,8 @@ namespace Unity.Entities
 
             // Make sure prefab root is dynamic
             var counters = new TransformUsageFlagCounters();
-            counters.Add(TransformUsageFlags.Dynamic);
+            // Fivemid: prefab root should only be dynamic if referenced as such
+            // counters.Add(TransformUsageFlags.Dynamic);
             _ReferencedEntities.Add(entity, counters);
 
             // Now register the Prefab for lazy baking
