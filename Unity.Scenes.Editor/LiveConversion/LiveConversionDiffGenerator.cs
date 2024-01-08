@@ -439,7 +439,8 @@ namespace Unity.Scenes.Editor
                     EntityManagerDifferOptions.IncludeForwardChangeSet |
                     EntityManagerDifferOptions.FastForwardShadowWorld |
                     EntityManagerDifferOptions.ValidateUniqueEntityGuid |
-                    EntityManagerDifferOptions.ClearMissingReferences;
+                    EntityManagerDifferOptions.ClearMissingReferences |
+                    EntityManagerDifferOptions.UseReferentialEquality;
 
                 changes = new LiveConversionChangeSet
                 {
