@@ -17,8 +17,9 @@ EntityManager.DestroyEntity(e);
 // The entity still exists so this demonstrates that you can still use the entity normally.
 EntityManager.AddComponent<Translation>(e);
 
-// Removes all the components from the entity. This destroys the entity.
-EntityManager.DestroyEntity(e, new ComponentTypes(typeof(ExampleCleanup), typeof(Translation)));
+// Removes all the remaining components from the entity.
+// Removing the final cleanup component (ExampleCleanup) automatically destroys the entity.
+EntityManager.RemoveComponent(e, new ComponentTypeSet(typeof(ExampleCleanup), typeof(Translation)));
 
 // Demonstrates that the entity no longer exists. entityExists is false. 
 bool entityExists = EntityManager.Exists(e);
@@ -26,6 +27,11 @@ bool entityExists = EntityManager.Exists(e);
 
 > [!NOTE]
 > Cleanup components are unmanaged and have all of the same restrictions as [unmanaged components](components-unmanaged.md).
+>
+> The following limitations also apply:
+> - Cleanup components are not included when entities are copied between Worlds.
+>   - As a consequence, cleanup components added at baking time will not be serialized.
+> - Cleanup components on prefab entities will not be included on instantiated instances of that prefab.
 
 ## Additional resources
 * [Unmanaged components](components-unmanaged.md)

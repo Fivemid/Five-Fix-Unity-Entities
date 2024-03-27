@@ -4,6 +4,65 @@ uid: changelog
 
 # Changelog
 
+## [1.2.0] - 2024-03-22
+
+### Added
+
+* Document counterintuitive behavior when an `EntityQueryMask` is created from an `EntityQuery` that includes a `WithNone<T>()` constraint, where `T` is an `IEnableableComponent`.
+
+### Changed
+
+* Performance improvements in `LocalToWorldSystem` when processing entities with non-dirty hierarchies and no children.
+
+### Deprecated
+
+* `EntityManager.CopyEntities()` is now deprecated, and will be removed from the public API in a future package release. We're not aware of any use cases for this function outside of the Entities package itself; `EntityManager.Instantiate()` is the correct way for higher-level code to instantiate copies of existing entities.
+
+### Fixed
+
+* BakingAnalytics no longer initializes TypeManager [InitializeOnLoad]
+* Fixed issue where breakpoints in jobs defined after systems with SystemAPI usage are not hit.
+* Fixed an error where the Entities Hierarchy window was accessing a destroyed world during UI bindings.
+* Using SystemAPI.GetComponentRO/RW with "using static SystemAPI" within an Entities.ForEach used to confuse the code generator and failed to compile.
+* Replace `HierarchyNodeMap`'s indexer setter with explicit add/update logic.
+* an issue with hybrid entity baking regarding scales with different signs
+* Entities Hierarchy now removes all nodes of a scene and subscenes when the scene is unloaded.
+* Exception thrown when entering a prefab from the Entities Hierarchy
+* Fixed: Memory leak in certain circumstances in Entity Scene Streaming
+* Improved error message for when `SystemAPI.QueryBuilder` users forget to call `.Build()`.
+* An assert when using AddMultipleComponentsDuringStructuralChange with more than 10 entities in some cases
+* Add filter button was not showing filters in Archetypes and Journaling windows.
+* An invalid range check caused the removal of entities from the hierarchy view to sometimes fail in perfectly valid cases.
+
+
+## [1.2.0-pre.12] - 2024-02-13
+
+### Added
+
+* A file with the code for both snippets in the custom transforms documentation was added to the "DocCodeSamples.Tests" folder.
+* The Create Menu now offers ScriptTemplates for the IComponentData, ISystem, IJobEntity and Baker types under Assets/Create/Entities
+
+### Changed
+
+* Fixed infinite loop that could occur due to concurrent use of non-concurrent Dictionary in Aspect Generator.
+* Reduce the set/restore frequency of the fixed rate system group allocator.
+* Various performance improvements in baking. Baking mesh-heavy scenes now takes 70% of what it did before.
+* Significant performance improvements when creating archetypes and entity queries in Worlds with a large number of existing archetypes/queries.
+* Updated Burst dependency to version 1.8.12
+
+### Fixed
+
+* EntityQuery singleton methods now correctly handle cases where the query contains enableable components. Note that `GetSingletonEntity()` and `TryGetSingletonEntity()` still can not be used on queries with enableable components, and that the singleton component itself can not be enableable. Both constraints may be lifted in a future release.
+* A broken link to a code snippet in the documentation for custom transforms was fixed.
+* Archetype window and Entity Memory Profiler module UI initialization.
+* Making a player build with define `UNITY_DOTS_DEBUG`, while using an IJobEntity using RefRO/RefRW no longer compile errors!
+* Clarified documentation for cleanup components
+* Fixed minor memory leak in content delivery system.
+* AABB.Contains.
+* The entities hierarchy view would sometimes throw exceptions when entities were destroyed.
+* remove use of UNITY_64 define, as is can not be reliably used to determine 64 bit nature of platforms. Fixes crashes related to pointer truncation.
+
+
 ## [1.2.0-pre.6] - 2023-12-13
 
 ### Changed
@@ -26,6 +85,7 @@ uid: changelog
 * An `EntityQuery` that uses `WithNone<T>` with an enableable component `T` will now insert a read dependency on `T` into the query's system, so that jobs which enable/disable `T` are correctly included in the system's input dependencies.
 * Background importing of subscenes using sections would occasionally throw an exception.
 * Selecting entities and systems now works again.
+
 
 
 ## [1.2.0-exp.3] - 2023-11-09

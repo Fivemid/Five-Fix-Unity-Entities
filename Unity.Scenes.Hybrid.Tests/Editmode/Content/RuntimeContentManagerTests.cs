@@ -199,9 +199,6 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
         }
 
 #if false
-        // APV doesn't respect the Ignore attribute to disable tests, so ifdef explicitly
-        // https://unity.slack.com/archives/C04UGPY27S9/p1683136704435259
-
         [UnityTest]
         public IEnumerator RuntimeContentManager_CanLoadAndReleaseFromThreads()
         {
@@ -242,7 +239,7 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
             }
             ids.Dispose();
         }
-#endif
+    #endif
 
         struct LoadObjectJob : IJob
         {
@@ -262,7 +259,6 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
             }
         }
 #if false
-
         [UnityTest]
         public IEnumerator RuntimeContentManager_CanLoadAdditive_GOScenes()
         {
@@ -330,9 +326,9 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
                 yield return null;
             }
             ids.Dispose();
+            jobs.Dispose();
         }
 #endif
-
         IEnumerator AssertCanLoadAndRelease<TObject>(UntypedWeakReferenceId id) where TObject : UnityEngine.Object
         {
             RuntimeContentManager.LoadObjectAsync(id);
@@ -347,7 +343,7 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
             RuntimeContentManager.ProcessQueuedCommands();
             Assert.AreEqual(ObjectLoadingStatus.None, RuntimeContentManager.GetObjectLoadingStatus(id));
         }
-        
+
 #if false
         [Test]
         public void LoadingObjectsCountIsCorrectAfterLoadsAndReleases()
@@ -367,7 +363,6 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
             Assert.AreEqual(0, RuntimeContentManager.LoadingObjectsCount());
             ids.Dispose();
         }
-
 
         [UnityTest]
         public IEnumerator RuntimeContentManager_CanLoadLocalAssets()
@@ -428,10 +423,14 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
             yield return new EnterPlayMode();
 
             Assert.IsTrue(InitializeCatalogForTest());
-            var ids = RuntimeContentManager.GetObjectIds(Allocator.Persistent);
-
             WeakObjectReference<UnityEngine.Object> matRef = default;
-            matRef.Id = ids[0];// new UntypedWeakReferenceId { GlobalId = new RuntimeGlobalObjectId { AssetGUID = ids[0] }, GenerationType = WeakReferenceGenerationType.UnityObject};
+
+            {
+                var ids = RuntimeContentManager.GetObjectIds(Allocator.Persistent);
+                matRef.Id = ids[0];// new UntypedWeakReferenceId { GlobalId = new RuntimeGlobalObjectId { AssetGUID = ids[0] }, GenerationType = WeakReferenceGenerationType.UnityObject};
+                ids.Dispose();
+            }
+
             matRef.LoadAsync();
             RuntimeContentManager.ProcessQueuedCommands();
             Assert.IsTrue(matRef.LoadingStatus >= ObjectLoadingStatus.Loading);
@@ -506,7 +505,7 @@ namespace Unity.Scenes.Hybrid.Tests.Editmode.Content
             wr.Id.GenerationType = WeakReferenceGenerationType.UnityObject;
             Assert.IsFalse(wr.IsReferenceValid);
         }
-#endif
+    #endif
     }
 }
 #endif

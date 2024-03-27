@@ -22,7 +22,7 @@ namespace Unity.Entities
         const string k_EventNameOpen = "openSubScene";
         const string k_EventNameImporter = "backgroundImporter";
 
-        static readonly TypeIndex k_SkinnedMeshRendererTypeIndex;
+        static TypeIndex k_SkinnedMeshRendererTypeIndex;
 
         static ProjectComplexityData s_ProjectComplexityData;
         static NativeList<TypeIndex> s_BakeTypeIndices;
@@ -61,9 +61,6 @@ namespace Unity.Entities
                 skinned_mesh_renderer_component_count = 0,
             };
 
-            TypeManager.Initialize();
-            k_SkinnedMeshRendererTypeIndex = TypeManager.GetTypeIndex(typeof(SkinnedMeshRenderer));
-
             AppDomain.CurrentDomain.DomainUnload += (_, __) => { s_BakeTypeIndices.Dispose(); };
         }
 
@@ -72,6 +69,7 @@ namespace Unity.Entities
 #if !UNITY_2023_2_OR_NEWER
             if (!s_EventsRegistered)
             {
+                k_SkinnedMeshRendererTypeIndex = TypeManager.GetTypeIndex(typeof(SkinnedMeshRenderer));
                 AnalyticsResult resultComplexity = EditorAnalytics.RegisterEventWithLimit(k_EventNameComplexity, k_MaxEventsPerHour,
                     k_MaxNumberOfElements, k_VendorKey);
                 AnalyticsResult resultIncremental = EditorAnalytics.RegisterEventWithLimit(k_EventNameIncremental, k_MaxEventsPerHour,
@@ -147,7 +145,10 @@ namespace Unity.Entities
                 if (BakerDataUtility._BakersByAssembly.TryGetValue(assembly, out var assemblyData))
                     isUnityAssembly = assemblyData.IsUnityAssembly;
                 else
-                    isUnityAssembly = assembly.GetName().Name.StartsWith("Unity.") || assembly.GetName().Name.StartsWith("UnityEngine.");
+                {
+                    var assemblyName = assembly.GetName().Name;
+                    isUnityAssembly = assemblyName.StartsWith("Unity.") || assemblyName.StartsWith("UnityEngine.");
+                }
 
                 // Log the Component/Bakers according to Assembly
                 if (isUnityAssembly)
